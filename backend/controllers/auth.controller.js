@@ -10,7 +10,7 @@ export const signup = async (req, res, next) => {
 
   try {
     await newUser.save();
-    res.status(201).json("User created successfully!");
+    res.status(201).json({success:true,message:"User created successfully!"});
   } catch (error) {
     next(error);
   }
@@ -24,7 +24,7 @@ export const signin = async (req, res, next) => {
     const vaildPassword = bcryptsjs.compareSync(password, vaildUser.password);
     if (!vaildPassword) return next(errorHandler(401, "Wrong credential!"));
     const token = jwt.sign({ id: vaildUser._id }, process.env.JWT_SECRET);
-    //seprate the password for safe
+    //seprate the password for safety
     const { password: pass, ...rest} = vaildUser._doc;
     //save this token as browser cookie
     res
