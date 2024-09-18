@@ -17,13 +17,13 @@ export const signup = async (req, res) => {
   }
 };
 
-export const signin = async (req, res, next) => {
+export const signin = async (req, res/* , next */) => {
   const { email, password } = req.body;
   try {
     const vaildUser = await userModel.findOne({ email });
-    if (!vaildUser) return next(errorHandler(404, "User not found!"));
+    if (!vaildUser) return /* next(errorHandler(404, "User not found!")); */res.json({success:false,message:"User not found!"})
     const vaildPassword = bcryptsjs.compareSync(password, vaildUser.password);
-    if (!vaildPassword) return next(errorHandler(401, "Wrong credential!"));
+    if (!vaildPassword) return /* next(errorHandler(401, "Wrong credential!")); */res.json({success:false,message:"User not found!"})
     const token = jwt.sign({ id: vaildUser._id }, process.env.JWT_SECRET);
     //seprate the password for safety
     const { password: pass, ...rest} = vaildUser._doc;
@@ -33,6 +33,7 @@ export const signin = async (req, res, next) => {
       .status(200)
       .json(rest);
   } catch (error) {
-    next(error);
+    // next(error);
+    res.json({success:false,message:error.message});
   }
 };

@@ -1,9 +1,14 @@
 import { React, useState } from 'react'
-import { Link } from 'react-router-dom'
-
+import { Link, useNavigate } from 'react-router-dom'
+import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const SignIn = () => {
   const [formData, setFormData] = useState({});
+  const [loading,setLoading] = useState(false);
+  const [error,setError] = useState(null);
+  const navigate = useNavigate(); 
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -13,15 +18,26 @@ const SignIn = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const res = await fetch('/api/auth/signin', {
+    setLoading(true);
+    /* const res = await fetch('/api/auth/signin', {
       method: 'POST',
       hearders: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(formData),
-    });
-    const data = await res.json();
-
+    }); */
+    const res = await axios.post('/api/auth/signin',formData);
+    console.log(res.data);
+    if(res.data.success === false){
+      toast.error(res.data.message);
+      setLoading(false);
+      setError(res.data.message);
+      return;
+    }
+    toast.success(res.data.message);
+    setLoading(false);
+    setError(null);
+    navigate('/');
   }
 
   return (
@@ -33,14 +49,15 @@ const SignIn = () => {
         <input type="password" placeholder='password' onChange={handleChange}
           className='border p-3 rounded-lg' id='password' />
         <button className='bg-slate-700 text-white p-3 
-        rounded-lg uppercase hover:opacity-95 disabled:opacity-80'>Sign In</button>
+        rounded-lg uppercase hover:opacity-95 disabled:opacity-80'>{loading ? 'Loading' : 'Sign In'}</button>
       </form>
       <div className='flex gap-2 mt-5'>
-        <p>Haven't an account?</p>
+        <p>Dont have an account?</p>
         <Link to={'/sign-up'}>
-          <span className='text-blue-700'>Sign Up</span>
+          <span className='text-blue-700'>Sign up</span>
         </Link>
       </div>
+      {error && <p className='text-red-500 mt-5'>{error}</p>}
     </div>
   )
 }
