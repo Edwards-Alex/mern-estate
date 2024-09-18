@@ -2,12 +2,16 @@ import { React, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { useDispatch, useSelector } from 'react-redux';
+import { signInStar, signFailure, signInSuccess } from '../redux/user/userSlice';
 
 const SignIn = () => {
   const [formData, setFormData] = useState({});
-  const [loading,setLoading] = useState(false);
-  const [error,setError] = useState(null);
-  const navigate = useNavigate(); 
+  // const [loading, setLoading] = useState(false);
+  // const [error, setError] = useState(null);
+  const { loading, error } = useSelector((state) => state.user);
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const handleChange = (e) => {
     setFormData({
@@ -18,7 +22,8 @@ const SignIn = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    // setLoading(true);
+    dispatch(signInStar());
     /* const res = await fetch('/api/auth/signin', {
       method: 'POST',
       hearders: {
@@ -26,17 +31,19 @@ const SignIn = () => {
       },
       body: JSON.stringify(formData),
     }); */
-    const res = await axios.post('/api/auth/signin',formData);
+    const res = await axios.post('/api/auth/signin', formData);
     console.log(res.data);
-    if(res.data.success === false){
+    if (res.data.success === false) {
       toast.error(res.data.message);
-      setLoading(false);
-      setError(res.data.message);
+      /* setLoading(false);
+      setError(res.data.message); */
+      dispatch(signFailure(res.data.message));
       return;
     }
     toast.success(res.data.message);
-    setLoading(false);
-    setError(null);
+    /*  setLoading(false);
+     setError(null); */
+    dispatch(signInSuccess(res.data));
     navigate('/');
   }
 
