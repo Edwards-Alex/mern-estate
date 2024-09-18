@@ -3,7 +3,7 @@ import bcryptsjs from "bcryptjs";
 import { errorHandler } from "../utils/error.js";
 import jwt from "jsonwebtoken";
 
-export const signup = async (req, res, next) => {
+export const signup = async (req, res) => {
   const { username, email, password } = req.body;
   const hashedPassword = bcryptsjs.hashSync(password, 10);
   const newUser = new userModel({ username, email, password: hashedPassword });
@@ -12,7 +12,8 @@ export const signup = async (req, res, next) => {
     await newUser.save();
     res.status(201).json({success:true,message:"User created successfully!"});
   } catch (error) {
-    next(error);
+    // next(error);
+    res.json({success:false,message:error.message});
   }
 };
 

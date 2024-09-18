@@ -1,14 +1,15 @@
 import { React, useContext, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { SignContext } from '../context/SignContext';
+// import { SignContext } from '../context/SignContext';
 
 const SignUp = () => {
   const [formData, setFormData] = useState({});
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-  const {url} = useContext(SignContext)
+  // const {url} = useContext(SignContext)
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     setFormData({
@@ -19,35 +20,35 @@ const SignUp = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      setLoading(true);
-      const res = await axios.post(url+'/api/auth/signup',formData);
-      
-      /* const res = await fetch('http://localhost:3000/api/auth/signup', {
-        method: 'POST',
-        hearders: {
-          'Content-Type':'application/json',
-        },
-        body: JSON.stringify(formData),
-      }); 
+    // try {
+    setLoading(true);
+    const res = await axios.post('/api/auth/signup', formData);
 
-      const data = await res.json();*/
-      if (res.data.success === false) {
-        toast.error(res.data.message)
-        setError(res.data.message);
-        setLoading(false);
-        setError(null);
-        return;
-      }
-      toast.success(res.data.message);
-      setError(null);
-      setLoading(false);
-      setFormData({});
+    /* const res = await fetch('http://localhost:3000/api/auth/signup', {
+      method: 'POST',
+      hearders: {
+        'Content-Type':'application/json',
+      },
+      body: JSON.stringify(formData),
+    }); 
 
-    } catch (error) {
+    const data = await res.json();*/
+    if (res.data.success === false) {
+      toast.error(res.data.message);
+      setError(res.data.message);
       setLoading(false);
-      setError(error.message);
+      // setError(null);
+      return;
     }
+    toast.success(res.data.message);
+    setError(null);
+    setLoading(false);
+    navigate('/sign-in');
+
+    // } catch (error) {
+    // setLoading(false);
+    // setError(error.message);
+    // }
   }
 
   return (
@@ -69,7 +70,7 @@ const SignUp = () => {
         <p>Have an account?</p>
         <Link to={'/sign-in'}>
           <span className='text-blue-700'>Sign in</span>
-        </Link> 
+        </Link>
       </div>
       {error && <p className='text-red-500 mt-5'>{error}</p>}
     </div>
