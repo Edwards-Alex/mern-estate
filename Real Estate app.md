@@ -687,4 +687,8 @@ export const signin = async (req, res, next) => {
 
 
 
-2:44
+
+
+### 15. Add redux persist
+
+help us store the redux information in local storage
