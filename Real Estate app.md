@@ -628,67 +628,268 @@ export default SignIn
 
 ### 14. Add redux toolkit
 
-```js
-import express from 'express';
-import { signin, signup } from '../controllers/auth.controller.js';
+- ### Install Redux Toolkit and React-Redux
 
-const authRouter = express.Router();
+- `npm install @reduxjs/toolkit react-redux`
 
-authRouter.post('/signup',signup);
-//add route endpoint
-authRouter.post('/signin',signin);
+- ### Create a Redux Store at `src/redux/store.js`
 
-export default authRouter;
-```
-
-
+- Create a file named `src/app/store.js`. Import the `configureStore` API from Redux Toolkit. We'll start by creating an empty Redux store, and exporting it:
 
 ```js
-import userModel from "../models/User.model.js";
-import bcryptsjs from "bcryptjs";
-import { errorHandler } from "../utils/error.js";
-import jwt from "jsonwebtoken";
+import { combineReducers, configureStore } from "@reduxjs/toolkit";
+import userReducer from "./user/userSlice";
+import { persistReducer, persistStore } from "redux-persist";
+import storage from "redux-persist/lib/storage";
 
-export const signup = async (req, res, next) => {
-  const { username, email, password } = req.body;
-  const hashedPassword = bcryptsjs.hashSync(password, 10);
-  const newUser = new userModel({ username, email, password: hashedPassword });
+const rootReducer = combineReducers({ user: userReducer });
 
-  try {
-    await newUser.save();
-    res.status(201).json("User created successfully!");
-  } catch (error) {
-    next(error);
-  }
+const persistConfig = {
+  key: "root",
+  storage,
+  version: 1,
 };
 
-//signin function
-export const signin = async (req, res, next) => {
-  const { email, password } = req.body;
-  try {
-    const vaildUser = await userModel.findOne({ email });
-    if (!vaildUser) return next(errorHandler(404, "User not found!"));
-    const vaildPassword = bcryptsjs.compareSync(password, vaildUser.password);
-    if (!vaildPassword) return next(errorHandler(401, "Wrong credential!"));
-    const token = jwt.sign({ id: vaildUser._id }, process.env.JWT_SECRET);
-    //seprate the password for safety
-    const { password: pass, ...rest} = vaildUser._doc;
-    //save this token as browser cookie
-    res
-      .cookie("access_token", token, { httpOnly: true })
-      .status(200)
-      .json(rest);
-  } catch (error) {
-    next(error);
-  }
-};
+const persistedReducer = persistReducer(persistConfig, rootReducer);
+
+export const store = configureStore({
+  reducer: persistedReducer,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: false,
+    }),
+});
+
+export const persistor = persistStore(store);
+
+
+// Infer the `RootState` and `AppDispatch` types from the store itself
+// export type RootState = ReturnType<typeof store.getState>
+// Inferred type: {posts: PostsState, comments: CommentsState, users: UsersState}
+// export type AppDispatch = typeof store.dispatch
 
 ```
 
+- ### Provide the Redux Store to React
+
+- Once the store is created, we can make it available to our React components by putting a React-Redux `<Provider>` around our application in `src/index.js`. Import the Redux store we just created, put a `<Provider>` around your `<App>`, and pass the store as a prop:
+
+```jsx
+// import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import App from './App.jsx'
+import './index.css'
+import { persistor, store } from './redux/store.js'
+import { Provider } from 'react-redux'
+import SignContextProvider from './context/SignContext.jsx'
+import { BrowserRouter } from 'react-router-dom'
+import { PersistGate } from 'redux-persist/integration/react'
 
 
+createRoot(document.getElementById('root')).render(
+  <Provider store={store}>
+    <PersistGate loading={null} persistor={persistor}>
+      <BrowserRouter>
+        <SignContextProvider>
+          <App />
+        </SignContextProvider>
+      </BrowserRouter>
+    </PersistGate>
+  </Provider>
+)
+```
 
+- ### Create a Redux State Slice at `src/redux/user/userSlice`
+
+- Add a new file named `src/features/counter/counterSlice.js`. In that file, import the `createSlice` API from Redux Toolkit.
+
+  Creating a slice requires a string name to identify the slice, an initial state value, and one or more reducer functions to define how the state can be updated. Once a slice is created, we can export the generated Redux action creators and the reducer function for the whole slice.
+
+  Redux requires that [we write all state updates immutably, by making copies of data and updating the copies](https://redux.js.org/tutorials/fundamentals/part-2-concepts-data-flow#immutability). However, Redux Toolkit's `createSlice` and `createReducer` APIs use [Immer](https://immerjs.github.io/immer/) inside to allow us to [write "mutating" update logic that becomes correct immutable updates](https://redux.js.org/tutorials/fundamentals/part-8-modern-redux#immutable-updates-with-immer).
+
+```js
+import { createSlice } from "@reduxjs/toolkit";
+
+const initialState = {
+  currentUser: null,
+  error: null,
+  loading: false,
+};
+
+const userSlice = createSlice({
+  name: "user",
+  initialState,
+  reducers: {
+    signInStar: (state) => {
+      state.loading = true;
+    },
+    signInSuccess: (state, action) => {
+      state.currentUser = action.payload;
+      state.loading = false;
+      state.error = null;
+    },
+    signFailure: (state, action) => {
+      state.err = action.payload;
+      state.loading = false;
+    },
+  },
+});
+
+export const { signInStar, signInSuccess, signFailure } = userSlice.actions;
+export default userSlice.reducer;
+
+```
+
+- edit signIn.jsx page with redux replace normal variable example const loading and const error
+
+- ```jsx
+  import { React, useState } from 'react'
+  import { Link, useNavigate } from 'react-router-dom'
+  import axios from 'axios';
+  import { toast } from 'react-toastify';
+  import { useDispatch, useSelector } from 'react-redux';
+  import { signInStar, signFailure, signInSuccess } from '../redux/user/userSlice';
+  
+  const SignIn = () => {
+    const [formData, setFormData] = useState({});
+    // const [loading, setLoading] = useState(false);
+    // const [error, setError] = useState(null);
+    const { loading, error } = useSelector((state) => state.user);
+    const navigate = useNavigate();
+    const dispatch = useDispatch();
+    
+  
+    const handleChange = (e) => {
+      setFormData({
+        ...formData,
+        [e.target.id]: e.target.value,
+      });
+    }
+  
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      // setLoading(true);
+      dispatch(signInStar());
+      /* const res = await fetch('/api/auth/signin', {
+        method: 'POST',
+        hearders: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      }); */
+      const res = await axios.post('/api/auth/signin', formData);
+      console.log(res.data);
+      if (res.data.success === false) {
+        toast.error(res.data.message);
+        /* setLoading(false);
+        setError(res.data.message); */
+        dispatch(signFailure(res.data.message));
+        return;
+      }
+      toast.success(res.data.message);
+      /*  setLoading(false);
+       setError(null); */
+      dispatch(signInSuccess(res.data));
+      navigate('/');
+    }
+  
+    return (
+      <div className='p-3 max-w-lg mx-auto'>
+        <h1 className='text-3xl text-center font-semibold my-7'>Sign In</h1>
+        <form onSubmit={handleSubmit} className='flex flex-col gap-4 justify-center'>
+          <input type="email" placeholder='email' onChange={handleChange}
+            className='border p-3 rounded-lg' id='email' />
+          <input type="password" placeholder='password' onChange={handleChange}
+            className='border p-3 rounded-lg' id='password' />
+          <button className='bg-slate-700 text-white p-3 
+          rounded-lg uppercase hover:opacity-95 disabled:opacity-80'>{loading ? 'Loading' : 'Sign In'}</button>
+        </form>
+        <div className='flex gap-2 mt-5'>
+          <p>Dont have an account?</p>
+          <Link to={'/sign-up'}>
+            <span className='text-blue-700'>Sign up</span>
+          </Link>
+        </div>
+        {error && <p className='text-red-500 mt-5'>{error}</p>}
+      </div>
+    )
+  }
+  
+  export default SignIn
+  
+  ```
+
+  
 
 ### 15. Add redux persist
 
 help us store the redux information in local storage
+
+- `npm install redux-persist`
+
+- edit store.js configure your redux-persist add `const persistedReducer `and configure it in const store` reducer: persistedReducer,`
+
+- ```js
+  import { combineReducers, configureStore } from "@reduxjs/toolkit";
+  import userReducer from "./user/userSlice";
+  import { persistReducer, persistStore } from "redux-persist";
+  import storage from "redux-persist/lib/storage";
+  
+  const rootReducer = combineReducers({ user: userReducer });
+  
+  const persistConfig = {
+    key: "root",
+    storage,
+    version: 1,
+  };
+  
+  const persistedReducer = persistReducer(persistConfig, rootReducer);
+  
+  export const store = configureStore({
+    reducer: persistedReducer,
+    middleware: (getDefaultMiddleware) =>
+      getDefaultMiddleware({
+        serializableCheck: false,
+      }),
+  });
+  
+  export const persistor = persistStore(store);
+  
+  
+  // Infer the `RootState` and `AppDispatch` types from the store itself
+  // export type RootState = ReturnType<typeof store.getState>
+  // Inferred type: {posts: PostsState, comments: CommentsState, users: UsersState}
+  // export type AppDispatch = typeof store.dispatch
+  
+  ```
+
+- edit your main.js let PersistGate include <APP>
+
+- ```jsx
+  // import { StrictMode } from 'react'
+  import { createRoot } from 'react-dom/client'
+  import App from './App.jsx'
+  import './index.css'
+  import { persistor, store } from './redux/store.js'
+  import { Provider } from 'react-redux'
+  import SignContextProvider from './context/SignContext.jsx'
+  import { BrowserRouter } from 'react-router-dom'
+  import { PersistGate } from 'redux-persist/integration/react'
+  
+  
+  createRoot(document.getElementById('root')).render(
+    <Provider store={store}>
+      <PersistGate loading={null} persistor={persistor}>
+        <BrowserRouter>
+          <SignContextProvider>
+            <App />
+          </SignContextProvider>
+        </BrowserRouter>
+      </PersistGate>
+    </Provider>
+  )
+  ```
+
+  
+
+  
