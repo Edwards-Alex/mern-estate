@@ -1,5 +1,5 @@
-import {React, useState} from 'react';
-import {getAuth,  GoogleAuthProvider,  signInWithPopup} from 'firebase/auth';
+import { React } from 'react';
+import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { app } from '../firebase';
 import axios from 'axios';
 import { useDispatch } from 'react-redux'
@@ -12,30 +12,30 @@ const OAuth = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const handleGoogleClick = async() => {
+  const handleGoogleClick = async () => {
     try {
       const provider = new GoogleAuthProvider()
-      
-      const auth = getAuth(app)
-      const result = await signInWithPopup(auth,provider);
 
-        /* setData(pre=> ({
-          ...pre,
-          ['name']:result.user.displayName,
-          ['email']:result.user.email,
-          ['photo']:result.user.photoURL
-        })) */
-       const data = {
-        name:result.user.displayName,
-        email:result.user.email,
-        photo:result.user.photoURL
-       }
-       const res = await axios.post('/api/auth/google',data);
+      const auth = getAuth(app)
+      const result = await signInWithPopup(auth, provider);
+
+      /* setData(pre=> ({
+        ...pre,
+        ['name']:result.user.displayName,
+        ['email']:result.user.email,
+        ['photo']:result.user.photoURL
+      })) */
+      const data = {
+        name: result.user.displayName,
+        email: result.user.email,
+        photo: result.user.photoURL
+      }
+      const res = await axios.post('/api/auth/google', data);
       console.log(res);
-       dispatch(signInSuccess(res.data));
-       navigate('/');
+      dispatch(signInSuccess(res.data));
+      navigate('/');
     } catch (error) {
-      console.log('could not sign with google',error);
+      console.log('could not sign with google', error);
     }
   }
 

@@ -890,6 +890,224 @@ help us store the redux information in local storage
   )
   ```
 
+
+
+
+
+
+### 16. Add Google OAuth functionaily
+
+- create component OAuth.jsx
+
+- ```jsx
+  import {React} from 'react';
   
+  const OAuth = () => {
+  
+      const handleGoogleClick = async () => {
+          try{
+             // ...the logic for handleGoogleAuth 
+          }catch(error){
+              console.log('could not sign with google', error);
+          }
+      }
+    return (
+      <button
+        onClick={handleGoogleClick}
+        type='button'
+        className='bg-red-700 text-white rounded-lg uppercase p-3 hover:opacity-95'>continue with GOOGLE</button>
+    )
+  }
+  
+  export default OAuth
+  
+  ```
+
+- search browser firebase
+
+  - go to console.
+  - add a project and file in the content.
+  - web project click web and register app .
+
+- add Firebase SDK
+
+  - `npm install firebase` at fronted floder
+
+  - Then,initialise Firebase and begin using the SDKs for the products that you'd like to use.
+
+  - create file firebase.js at fronted/src floder
+
+  - ```js
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "firebase/app";
+    // TODO: Add SDKs for Firebase products that you want to use
+    // https://firebase.google.com/docs/web/setup#available-libraries
+    
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+        //apiKey save in .env for security
+      apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    //   apiKey: "AIzaSyB6kTxYlzEyHBErJIoCdi-PWo4F-XXm_rw",
+      authDomain: "mern-estate-dafdf.firebaseapp.com",
+      projectId: "mern-estate-dafdf",
+      storageBucket: "mern-estate-dafdf.appspot.com",
+      messagingSenderId: "979277743495",
+      appId: "1:979277743495:web:121bec7158d6a2c9507f22"
+    };
+    
+    // Initialize Firebase
+    export const app = initializeApp(firebaseConfig);
+    ```
+
+- in browser navigate bar Build , Authentication
+
+- choose you need additional providers example google 
+
+- file in the content 
+
+- ```jsx
+  import { React } from 'react';
+  import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+  import { app } from '../firebase';
+  import axios from 'axios';
+  import { useDispatch } from 'react-redux'
+  import { signInSuccess } from '../redux/user/userSlice';
+  import { useNavigate } from 'react-router-dom'
+  
+  const OAuth = () => {
+  
+    // const [data,setData] = useState({});
+    const dispatch = useDispatch();
+    const navigate = useNavigate();
+  
+    const handleGoogleClick = async () => {
+      try {
+        const provider = new GoogleAuthProvider()
+  
+        const auth = getAuth(app)
+        const result = await signInWithPopup(auth, provider);
+  
+        /* setData(pre=> ({
+          ...pre,
+          ['name']:result.user.displayName,
+          ['email']:result.user.email,
+          ['photo']:result.user.photoURL
+        })) */
+        const data = {
+          name: result.user.displayName,
+          email: result.user.email,
+          photo: result.user.photoURL
+        }
+        const res = await axios.post('/api/auth/google', data);
+        console.log(res);
+        dispatch(signInSuccess(res.data));
+        navigate('/');
+      } catch (error) {
+        console.log('could not sign with google', error);
+      }
+    }
+  
+    return (
+      <button
+        onClick={handleGoogleClick}
+        type='button'
+        className='bg-red-700 text-white rounded-lg uppercase p-3 hover:opacity-95'>continue with GOOGLE</button>
+    )
+  }
+  
+  export default OAuth
+  ```
+
+- add  functionaily at auth.controller.js then add this functionaily at router
+
+- ```js
+  import userModel from "../models/User.model.js";
+  import bcryptsjs from "bcryptjs";
+  import { errorHandler } from "../utils/error.js";
+  import jwt from "jsonwebtoken";
+  
+  export const signup = async (req, res) => {
+    const { username, email, password } = req.body;
+    const hashedPassword = bcryptsjs.hashSync(password, 10);
+    const newUser = new userModel({ username, email, password: hashedPassword });
+  
+    try {
+      await newUser.save();
+      res.status(201).json({success:true,message:"User created successfully!"});
+    } catch (error) {
+      // next(error);
+      res.json({success:false,message:error.message});
+    }
+  };
+  
+  export const signin = async (req, res/* , next */) => {
+    const { email, password } = req.body;
+    try {
+      const vaildUser = await userModel.findOne({ email });
+      if (!vaildUser) return /* next(errorHandler(404, "User not found!")); */res.json({success:false,message:"User not found!"})
+      const vaildPassword = bcryptsjs.compareSync(password, vaildUser.password);
+      if (!vaildPassword) return /* next(errorHandler(401, "Wrong credential!")); */res.json({success:false,message:"User not found!"})
+      const token = jwt.sign({ id: vaildUser._id }, process.env.JWT_SECRET);
+      //seprate the password for safety
+      const { password: pass, ...rest} = vaildUser._doc;
+      //save this token as browser cookie
+      res
+        .cookie("access_token", token, { httpOnly: true })
+        .status(200)
+        .json(rest);
+    } catch (error) {
+      // next(error);
+      res.json({success:false,message:error.message});
+    }
+  };
+  
+  export const google = async(req,res) => {
+    
+    const {name,email,photo} = req.body;
+  
+    try {
+      const user = await userModel.findOne({email});
+      if(user){
+        const token = jwt.sign({id:user_id},process.env.JWT_SECRET);
+        const {password:pass,...rest} = user._doc;
+        res
+          .cookie('access_token',token,{httpOnly:true})
+          .status(200)
+          .json(rest);
+      }else{
+        const generatedPassword = Math.random().toString(36).slice(-8)+Math.random().toString(36).slice(-8);
+        const hashedPassword = bcryptsjs.hashSync(generatedPassword,10);
+        const username = name.split(" ").join("").toLowerCase() +  Math.random().toString(36).slice(-4);
+        const newUser = new userModel({
+          username,
+          email,
+          password:hashedPassword,
+          avatar:photo});
+        await newUser.save();
+        const token = jwt.sign({id:newUser._id},process.env.JWT_SECRET);
+        const {password:pass,...rest} = newUser._doc;
+        res.cookie('access_token',token,{httpOnly:true}).status(200).json(rest)
+      }
+    } catch (error) {
+      res.json({success:false,message:error});
+    }
+  }
+  ```
+
+-  ```js
+   import express from 'express';
+   import { google, signin, signup } from '../controllers/auth.controller.js';
+   
+   const authRouter = express.Router();
+   
+   authRouter.post('/signup',signup);
+   authRouter.post('/signin',signin);
+   authRouter.post('/google',google);
+   
+   export default authRouter;
+   ```
 
   
+
+
+
