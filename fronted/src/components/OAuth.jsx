@@ -18,7 +18,6 @@ const OAuth = () => {
 
       const auth = getAuth(app)
       const result = await signInWithPopup(auth, provider);
-
       /* setData(pre=> ({
         ...pre,
         ['name']:result.user.displayName,
@@ -30,8 +29,8 @@ const OAuth = () => {
         email: result.user.email,
         photo: result.user.photoURL
       }
+      // console.log(data);
       const res = await axios.post('/api/auth/google', data);
-      console.log(res);
       dispatch(signInSuccess(res.data));
       navigate('/');
     } catch (error) {

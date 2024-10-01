@@ -1358,3 +1358,266 @@ complete handleFileUpload functionality
 
   
 
+### 20. Create user updated api route
+
+- add `/api/user/update/:id` route in  user router
+
+- create until `VerifyUser` and userController handle logic
+
+- pre create verifyUser npm cookie-parser use for read cookies info,because verifyUser with access_token store in cookie
+
+- `npm i cookie-parper` and configure it in index.js,notice: `app.use(cookieParser());`position  must before than endPoint ,otherwise req.cookies is undefined.
+
+- ```js
+  import express from "express"; 
+  import mongoose from "mongoose";
+  import dotenv from "dotenv";
+  dotenv.config();
+  import userRouter from "./routes/user.route.js"
+  import authRouter from "./routes/auth.route.js";
+  import cookieParser from "cookie-parser";
+  
+  mongoose
+    .connect(process.env.MOGO)
+    .then(() => {
+      console.log("Connect to MongoDB!");
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+  
+  const app = express();
+  const port = 8888;
+  
+  
+  app.use(express.json());
+  
+  app.use(cookieParser());
+  //api endpoints
+  app.use('/api/user',userRouter);
+  app.use('/api/auth',authRouter);
+  
+  //middleware
+  app.use((err,req,res,next) => {
+    const statusCode = err.statusCode || 500;
+    const message = err.message || 'Internal Server Error!!!';
+  
+    return res.status(statusCode).json({
+      success:false,
+      statusCode,
+      message,
+    });
+  });
+  
+  app.listen(port, () => {
+    console.log(`Server is runing on port ${port}!`);
+  });
+  ```
+
+- ```js
+  import express from "express";
+  import { verifyToken } from "../utils/verifyUser.js";
+  import { updateUser } from "../controllers/user.controller.js";
+  
+  const userRouter = express.Router();
+  
+  userRouter.post('/update/:id',verifyToken,updateUser);
+  
+  export default userRouter;
+  ```
+
+- ```js
+  import userModel from "../models/user.model.js";
+  import { errorHandler } from "../utils/error.js"
+  import bcryptjs from 'bcryptjs';
+  
+  export const updateUser = async(req,res,next) => {
+  
+     if(req.user.id !== req.params.id) return next(errorHandler(401,'You can only update your own account!'));
+     
+     try {
+      if(req.body.password) {
+          req.body.password = bcryptjs.hashSync(req.body.password,10);
+      }
+  
+      const updatedUser = await userModel.findByIdAndUpdate(req.params.id,{
+          $set: {
+              username: req.body.username,
+              email: req.body.email,
+              password:req.body.password,
+              avator:req.body.avatar
+          } 
+      },{new:true})
+  
+      const {password,...rest} = updatedUser._doc
+  
+      res.status(200).json(rest);
+     } catch (error) {
+       next(error)
+     }
+  }
+  ```
+
+ 
+
+### 21.  Complete update user functionality
+
+- add handleSubmit function use to add all changes to formData 
+
+- then post endpoint with formData use to update user information
+
+- ```jsx
+  import { React, useRef, useState, useEffect } from 'react'
+  import { useDispatch, useSelector } from 'react-redux'
+  import { getDownloadURL, getStorage, ref, uploadBytesResumable } from 'firebase/storage'
+  import { app } from '../firebase'
+  import axios from 'axios'
+  import { updateUserStart, updateUserSuccess, updateUserFailure } from '../redux/user/userSlice'
+  
+  const Profile = () => {
+  
+    const { currentUser, loading, error } = useSelector((state) => state.user)
+    const fileRef = useRef(null);
+    const [file, setFile] = useState(undefined);
+    const [filePerc, setFilePerc] = useState(0);
+    const [fileUploadError, setFileUploadError] = useState(false);
+    const [formData, setFormData] = useState({});
+    const dispatch = useDispatch();
+  
+    //filebase storage
+    /* 
+      allow read;
+      allow write : if
+      request.resource.size < 2 * 1024 * 1024 &&
+      request.resource.contentType.matches('image/.*')
+    */
+  
+    useEffect(() => {
+      if (file) {
+        handleFileUpload(file);
+      }
+    }, [file])
+  
+    const handleFileUpload = (file) => {
+      const storage = getStorage(app);
+      const fileName = new Date().getTime() + file.name;
+      const storageRef = ref(storage, fileName);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+  
+      uploadTask.on('state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred /
+            snapshot.totalBytes) * 100;
+          setFilePerc(Math.round(progress));
+        },
+        (error) => {
+          setFileUploadError(true);
+        },
+        () => {
+          getDownloadURL(uploadTask.snapshot.ref).then
+            ((downloadURL) => {
+              setFormData({ ...formData, avatar: downloadURL });
+            })
+        }
+      )
+    }
+  
+    const handleChange = (event) => {
+      setFormData({ ...formData, [event.target.id]: event.target.value });
+    }
+  
+    const handleSubmit = async (event) => {
+      event.preventDefault();
+      try {
+        dispatch(updateUserStart());
+        const res = await axios.post(`/api/user/update/${currentUser._id}`, formData);
+        if (res.data.success == false) {
+          dispatch(updateUserFailure(res.data.message));
+          return;
+        }
+        dispatch(updateUserSuccess(res.data));
+      } catch (error) {
+        dispatch(updateUserFailure(error.message));
+      }
+  
+    }
+  
+    return (
+      <div className='p-3 max-w-lg mx-auto'>
+        <h1 className='text-3xl text-center font-semibold my-7'>Profile</h1>
+        <form onSubmit={handleSubmit} className='flex flex-col gap-4'>
+          <input
+            onChange={(e) => setFile(e.target.files[0])}
+            type="file"
+            hidden
+            ref={fileRef}
+            accept='image/*'
+          />
+          {/* click this img just click fileRef input */}
+          <img onClick={() => fileRef.current.click()} className='rounded-full h-24 w-24 object-cover cursor-pointer self-center' src={formData.avatar || currentUser.avatar} alt="profile" />
+          <p className='text-sm self-center'>
+            {fileUploadError ? (
+              <span className='text-red-700'>Error Image upload(image must less than 2 mb)</span>
+            ) : filePerc > 0 && filePerc < 100 ? (
+              <span className='text-slate-700'>{`Uploading ${filePerc}%`}</span>
+            ) : filePerc === 100 ? (
+              <span className='text-green-700'>ImageSuccessfully uploaded!</span>
+            ) : (
+              ""
+            )
+            }
+          </p>
+          <input onChange={handleChange} className='border p-3 rounded-lg' type="text" placeholder='username' id='username' defaultValue={currentUser.username} />
+          <input onChange={handleChange} className='border p-3 rounded-lg' type="text" placeholder='email' id='email' defaultValue={currentUser.email} />
+          <input className='border p-3 rounded-lg' type="password" placeholder='password' id='password' />
+          <button disabled={loading} className='bg-slate-700 text-white rounded-lg p-3 uppercase hover:opacity-95 disabled:opacity-80'>
+            {loading ? 'loading' : 'update'}
+          </button>
+        </form>
+        <div className='flex justify-between mt-5'>
+          <span className='text-red-700 cursor-pointer'>Delete Account</span>
+          <span className='text-red-700 cursor-pointer'>Sign Out</span>
+        </div>
+      </div>
+    )
+  }
+  
+  export default Profile
+  
+  ```
+
+- this is user.controller.js use to hanldeSubmit  
+
+- ```js
+  import userModel from "../models/user.model.js";
+  import { errorHandler } from "../utils/error.js"
+  import bcryptjs from 'bcryptjs';
+  
+  export const updateUser = async(req,res,next) => {
+  
+     if(req.user.id !== req.params.id) return next(errorHandler(401,'You can only update your own account!'));
+     
+     try {
+      if(req.body.password) {
+          req.body.password = bcryptjs.hashSync(req.body.password,10);
+      }
+  
+      const updatedUser = await userModel.findByIdAndUpdate(req.params.id,{
+          $set: {
+              username: req.body.username,
+              email: req.body.email,
+              password:req.body.password,
+              avatar:req.body.avatar
+          } 
+      },{new:true})
+  
+      const {password,...rest} = updatedUser._doc
+  
+      res.status(200).json(rest);
+     } catch (error) {
+       next(error)
+     }
+  }
+  ```
+
+  

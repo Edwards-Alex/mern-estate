@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://192.168.0.109:8888",
+        target: "http://localhost:8888",
         secure: false,
       },
     },

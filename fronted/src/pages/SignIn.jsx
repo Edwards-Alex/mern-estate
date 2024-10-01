@@ -34,7 +34,7 @@ const SignIn = () => {
       body: JSON.stringify(formData),
     }); */
     const res = await axios.post('/api/auth/signin', formData);
-    console.log(res.data);
+    
     if (res.data.success === false) {
       toast.error(res.data.message);
       /* setLoading(false);
