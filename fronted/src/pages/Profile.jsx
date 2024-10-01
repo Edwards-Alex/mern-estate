@@ -4,6 +4,7 @@ import { getDownloadURL, getStorage, ref, uploadBytesResumable } from 'firebase/
 import { app } from '../firebase'
 import axios from 'axios'
 import { updateUserStart, updateUserSuccess, updateUserFailure } from '../redux/user/userSlice'
+import { toast } from 'react-toastify'
 
 const Profile = () => {
 
@@ -62,13 +63,16 @@ const Profile = () => {
     try {
       dispatch(updateUserStart());
       const res = await axios.post(`/api/user/update/${currentUser._id}`, formData);
+      
       if (res.data.success == false) {
         dispatch(updateUserFailure(res.data.message));
         return;
       }
+      toast.success(res.data.message);
       dispatch(updateUserSuccess(res.data));
     } catch (error) {
-      dispatch(updateUserFailure(error.message));
+      toast.error(error.response.data.message);
+      dispatch(updateUserFailure(error.response.data.message));
     }
 
   }

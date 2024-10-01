@@ -1473,6 +1473,7 @@ complete handleFileUpload functionality
   import { app } from '../firebase'
   import axios from 'axios'
   import { updateUserStart, updateUserSuccess, updateUserFailure } from '../redux/user/userSlice'
+  import { toast } from 'react-toastify'
   
   const Profile = () => {
   
@@ -1531,13 +1532,16 @@ complete handleFileUpload functionality
       try {
         dispatch(updateUserStart());
         const res = await axios.post(`/api/user/update/${currentUser._id}`, formData);
+        
         if (res.data.success == false) {
           dispatch(updateUserFailure(res.data.message));
           return;
         }
+        toast.success(res.data.message);
         dispatch(updateUserSuccess(res.data));
       } catch (error) {
-        dispatch(updateUserFailure(error.message));
+        toast.error(error.response.data.message);
+        dispatch(updateUserFailure(error.response.data.message));
       }
   
     }
@@ -1583,7 +1587,6 @@ complete handleFileUpload functionality
   }
   
   export default Profile
-  
   ```
 
 - this is user.controller.js use to hanldeSubmit  
@@ -1612,7 +1615,7 @@ complete handleFileUpload functionality
       },{new:true})
   
       const {password,...rest} = updatedUser._doc
-  
+      rest.message = 'updated user success';
       res.status(200).json(rest);
      } catch (error) {
        next(error)

@@ -21,7 +21,7 @@ export const updateUser = async(req,res,next) => {
     },{new:true})
 
     const {password,...rest} = updatedUser._doc
-
+    rest.message = 'updated user success';
     res.status(200).json(rest);
    } catch (error) {
      next(error)

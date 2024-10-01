@@ -1,7 +1,7 @@
-import userModel from "../models/User.model.js";
 import bcryptsjs from "bcryptjs";
 import { errorHandler } from "../utils/error.js";
 import jwt from "jsonwebtoken";
+import userModel from "../models/user.model.js";
 
 export const signup = async (req, res) => {
   const { username, email, password } = req.body;
@@ -46,7 +46,6 @@ export const google = async(req,res) => {
     const user = await userModel.findOne({email});
 
     if(user){
-      console.log('enter this select');
       const token = jwt.sign({id:user._id},process.env.JWT_SECRET);
       const {password:pass,...rest} = user._doc;
       res
