@@ -1623,4 +1623,82 @@ complete handleFileUpload functionality
   }
   ```
 
-  
+
+
+
+
+
+### 22.  Add delete user functionality
+
+- create delete user api route
+
+```js
+import express from "express";
+import { verifyToken } from "../utils/verifyUser.js";
+import { updateUser ,deleteUser } from "../controllers/user.controller.js";
+
+const userRouter = express.Router();
+
+userRouter.post('/update/:id',verifyToken,updateUser);
+userRouter.delete('/delete/:id',verifyToken,deleteUser);
+
+export default userRouter;
+```
+
+- add functionaily delete user for database in user.controller.js
+
+```js
+import userModel from "../models/user.model.js";
+import { errorHandler } from "../utils/error.js";
+import bcryptjs from "bcryptjs";
+
+export const updateUser = async (req, res, next) => {
+  if (req.user.id !== req.params.id)
+    return next(errorHandler(401, "You can only update your own account!"));
+
+  try {
+    if (req.body.password) {
+      req.body.password = bcryptjs.hashSync(req.body.password, 10);
+    }
+
+    const updatedUser = await userModel.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set: {
+          username: req.body.username,
+          email: req.body.email,
+          password: req.body.password,
+          avatar: req.body.avatar,
+        },
+      },
+      { new: true }
+    );
+
+    const { password, ...rest } = updatedUser._doc;
+    rest.message = "updated user successfully";
+    res.status(200).json(rest);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteUser = async (req, res, next) => {
+    if( req.user.id !== req.params.id){
+        return next(errorHandler(401,'You can only delete your own account!'));
+    }
+    try {
+        await userModel.findByIdAndDelete(req.params.id);
+        res.status(200).json('User has been deleted');
+
+    } catch (error) {
+        next(error);
+    }
+};
+```
+
+- add front end profile.jsx click event , click it execute back end deleteUser functionaily
+
+```jsx
+```
+
+"password":"$2a$10$ef6u/pfoyAHIJKbi/BmEkutnXHwTHoDakNiiyhpsbkqtSpUrPFLHq"

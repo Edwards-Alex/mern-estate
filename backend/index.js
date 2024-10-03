@@ -22,9 +22,6 @@ const port = 8888;
 app.use(express.json());
 
 app.use(cookieParser());
-//api endpoints
-app.use('/api/user',userRouter);
-app.use('/api/auth',authRouter);
 
 //middleware
 app.use((err,req,res,next) => {
@@ -37,6 +34,12 @@ app.use((err,req,res,next) => {
     message,
   });
 });
+
+//api endpoints
+app.use('/api/user',userRouter);
+app.use('/api/auth',authRouter);
+
+
 
 app.listen(port, () => {
   console.log(`Server is runing on port ${port}!`);

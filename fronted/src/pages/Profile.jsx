@@ -3,7 +3,10 @@ import { useDispatch, useSelector } from 'react-redux'
 import { getDownloadURL, getStorage, ref, uploadBytesResumable } from 'firebase/storage'
 import { app } from '../firebase'
 import axios from 'axios'
-import { updateUserStart, updateUserSuccess, updateUserFailure } from '../redux/user/userSlice'
+import {
+  updateUserStart, updateUserSuccess, updateUserFailure,
+  deleteUserStart, deleteUserSuccess, deleteUserFailure,
+} from '../redux/user/userSlice'
 import { toast } from 'react-toastify'
 
 const Profile = () => {
@@ -63,7 +66,7 @@ const Profile = () => {
     try {
       dispatch(updateUserStart());
       const res = await axios.post(`/api/user/update/${currentUser._id}`, formData);
-      
+
       if (res.data.success == false) {
         dispatch(updateUserFailure(res.data.message));
         return;
@@ -75,6 +78,24 @@ const Profile = () => {
       dispatch(updateUserFailure(error.response.data.message));
     }
 
+  }
+
+  const handleDeleteUser = async () => {
+    try {
+      dispatch(deleteUserStart());
+      const res = await axios.delete(`/api/user/delete/${currentUser._id}`);
+      if(res.data.success == false){
+        dispatch(deleteUserFailure(res.data.message));
+        toast.error(res.data.message);
+        return;
+      }
+
+      dispatch(deleteUserSuccess(res.data));
+      toast.success(res.data.message);
+    } catch (error) {
+      toast.error(error.message);
+      dispatch(deleteUserFailure(error.message));
+    }
   }
 
   return (
@@ -104,13 +125,13 @@ const Profile = () => {
         </p>
         <input onChange={handleChange} className='border p-3 rounded-lg' type="text" placeholder='username' id='username' defaultValue={currentUser.username} />
         <input onChange={handleChange} className='border p-3 rounded-lg' type="text" placeholder='email' id='email' defaultValue={currentUser.email} />
-        <input className='border p-3 rounded-lg' type="password" placeholder='password' id='password' />
+        <input onChange={handleChange} className='border p-3 rounded-lg' type="password" placeholder='password' id='password' />
         <button disabled={loading} className='bg-slate-700 text-white rounded-lg p-3 uppercase hover:opacity-95 disabled:opacity-80'>
           {loading ? 'loading' : 'update'}
         </button>
       </form>
       <div className='flex justify-between mt-5'>
-        <span className='text-red-700 cursor-pointer'>Delete Account</span>
+        <span onClick={handleDeleteUser} className='text-red-700 cursor-pointer'>Delete Account</span>
         <span className='text-red-700 cursor-pointer'>Sign Out</span>
       </div>
     </div>

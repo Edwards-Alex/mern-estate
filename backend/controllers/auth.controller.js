@@ -23,7 +23,7 @@ export const signin = async (req, res/* , next */) => {
     const vaildUser = await userModel.findOne({ email });
     if (!vaildUser) return /* next(errorHandler(404, "User not found!")); */res.json({success:false,message:"User not found!"})
     const vaildPassword = bcryptsjs.compareSync(password, vaildUser.password);
-    if (!vaildPassword) return /* next(errorHandler(401, "Wrong credential!")); */res.json({success:false,message:"User not found!"})
+    if (!vaildPassword) return /* next(errorHandler(401, "Wrong credential!")); */res.json({success:false,message:"Wrong credential!"})
     const token = jwt.sign({ id: vaildUser._id }, process.env.JWT_SECRET);
     //seprate the password for safety
     const { password: pass, ...rest} = vaildUser._doc;
