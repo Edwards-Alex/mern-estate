@@ -6,6 +6,7 @@ import axios from 'axios'
 import {
   updateUserStart, updateUserSuccess, updateUserFailure,
   deleteUserStart, deleteUserSuccess, deleteUserFailure,
+  signOutUserStart,signOutUserSuccess,signOutUserFailure
 } from '../redux/user/userSlice'
 import { toast } from 'react-toastify'
 
@@ -98,6 +99,22 @@ const Profile = () => {
     }
   }
 
+  const handleSignOut = async() => {
+    try {
+      dispatch(signOutUserStart());
+      const res =  await axios.get('/api/auth/signout');
+      if(res.success == false){
+        dispatch(signOutUserFailure(res.data.message));
+        return;
+      }
+      dispatch(signOutUserSuccess(res.data));
+      toast.success(res.data.message);
+    } catch (error) {
+      dispatch(signOutUserFailure(error.message));
+      toast.error(res.data.message);
+    }
+  }
+
   return (
     <div className='p-3 max-w-lg mx-auto'>
       <h1 className='text-3xl text-center font-semibold my-7'>Profile</h1>
@@ -132,7 +149,7 @@ const Profile = () => {
       </form>
       <div className='flex justify-between mt-5'>
         <span onClick={handleDeleteUser} className='text-red-700 cursor-pointer'>Delete Account</span>
-        <span className='text-red-700 cursor-pointer'>Sign Out</span>
+        <span onClick={handleSignOut} className='text-red-700 cursor-pointer'>Sign Out</span>
       </div>
     </div>
   )

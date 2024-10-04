@@ -895,7 +895,7 @@ help us store the redux information in local storage
 
 
 
-### 16. Add Google OAuth functionaily
+### 16. Add Google OAuth functionality
 
 - create component OAuth.jsx
 
@@ -1018,7 +1018,7 @@ help us store the redux information in local storage
   export default OAuth
   ```
 
-- add  functionaily at auth.controller.js then add this functionaily at router
+- add  functionality at auth.controller.js then add this functionality at router
 
 - ```js
   import userModel from "../models/User.model.js";
@@ -1699,6 +1699,520 @@ export const deleteUser = async (req, res, next) => {
 - add front end profile.jsx click event , click it execute back end deleteUser functionaily
 
 ```jsx
+import { React, useRef, useState, useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { getDownloadURL, getStorage, ref, uploadBytesResumable } from 'firebase/storage'
+import { app } from '../firebase'
+import axios from 'axios'
+import {
+  updateUserStart, updateUserSuccess, updateUserFailure,
+  deleteUserStart, deleteUserSuccess, deleteUserFailure,
+} from '../redux/user/userSlice'
+import { toast } from 'react-toastify'
+
+const Profile = () => {
+
+  const { currentUser, loading, error } = useSelector((state) => state.user)
+  const fileRef = useRef(null);
+  const [file, setFile] = useState(undefined);
+  const [filePerc, setFilePerc] = useState(0);
+  const [fileUploadError, setFileUploadError] = useState(false);
+  const [formData, setFormData] = useState({});
+  const dispatch = useDispatch();
+
+  //filebase storage
+  /* 
+    allow read;
+    allow write : if
+    request.resource.size < 2 * 1024 * 1024 &&
+    request.resource.contentType.matches('image/.*')
+  */
+
+  useEffect(() => {
+    if (file) {
+      handleFileUpload(file);
+    }
+  }, [file])
+
+  const handleFileUpload = (file) => {
+    const storage = getStorage(app);
+    const fileName = new Date().getTime() + file.name;
+    const storageRef = ref(storage, fileName);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on('state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred /
+          snapshot.totalBytes) * 100;
+        setFilePerc(Math.round(progress));
+      },
+      (error) => {
+        setFileUploadError(true);
+      },
+      () => {
+        getDownloadURL(uploadTask.snapshot.ref).then
+          ((downloadURL) => {
+            setFormData({ ...formData, avatar: downloadURL });
+          })
+      }
+    )
+  }
+
+  const handleChange = (event) => {
+    setFormData({ ...formData, [event.target.id]: event.target.value });
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    try {
+      dispatch(updateUserStart());
+      const res = await axios.post(`/api/user/update/${currentUser._id}`, formData);
+
+      if (res.data.success == false) {
+        dispatch(updateUserFailure(res.data.message));
+        return;
+      }
+      toast.success(res.data.message);
+      dispatch(updateUserSuccess(res.data));
+    } catch (error) {
+      toast.error(error.response.data.message);
+      dispatch(updateUserFailure(error.response.data.message));
+    }
+
+  }
+
+  const handleDeleteUser = async () => {
+    try {
+      dispatch(deleteUserStart());
+      const res = await axios.delete(`/api/user/delete/${currentUser._id}`);
+      if(res.data.success == false){
+        dispatch(deleteUserFailure(res.data.message));
+        toast.error(res.data.message);
+        return;
+      }
+
+      dispatch(deleteUserSuccess(res.data));
+      toast.success(res.data.message);
+    } catch (error) {
+      toast.error(error.message);
+      dispatch(deleteUserFailure(error.message));
+    }
+  }
+
+  return (
+    <div className='p-3 max-w-lg mx-auto'>
+      <h1 className='text-3xl text-center font-semibold my-7'>Profile</h1>
+      <form onSubmit={handleSubmit} className='flex flex-col gap-4'>
+        <input
+          onChange={(e) => setFile(e.target.files[0])}
+          type="file"
+          hidden
+          ref={fileRef}
+          accept='image/*'
+        />
+        {/* click this img just click fileRef input */}
+        <img onClick={() => fileRef.current.click()} className='rounded-full h-24 w-24 object-cover cursor-pointer self-center' src={formData.avatar || currentUser.avatar} alt="profile" />
+        <p className='text-sm self-center'>
+          {fileUploadError ? (
+            <span className='text-red-700'>Error Image upload(image must less than 2 mb)</span>
+          ) : filePerc > 0 && filePerc < 100 ? (
+            <span className='text-slate-700'>{`Uploading ${filePerc}%`}</span>
+          ) : filePerc === 100 ? (
+            <span className='text-green-700'>ImageSuccessfully uploaded!</span>
+          ) : (
+            ""
+          )
+          }
+        </p>
+        <input onChange={handleChange} className='border p-3 rounded-lg' type="text" placeholder='username' id='username' defaultValue={currentUser.username} />
+        <input onChange={handleChange} className='border p-3 rounded-lg' type="text" placeholder='email' id='email' defaultValue={currentUser.email} />
+        <input onChange={handleChange} className='border p-3 rounded-lg' type="password" placeholder='password' id='password' />
+        <button disabled={loading} className='bg-slate-700 text-white rounded-lg p-3 uppercase hover:opacity-95 disabled:opacity-80'>
+          {loading ? 'loading' : 'update'}
+        </button>
+      </form>
+      <div className='flex justify-between mt-5'>
+        <span onClick={handleDeleteUser} className='text-red-700 cursor-pointer'>Delete Account</span>
+        <span className='text-red-700 cursor-pointer'>Sign Out</span>
+      </div>
+    </div>
+  )
+}
+
+export default Profile
 ```
 
-"password":"$2a$10$ef6u/pfoyAHIJKbi/BmEkutnXHwTHoDakNiiyhpsbkqtSpUrPFLHq"
+
+
+### 23. Add sign out user functionality
+
+- create sign out api router at auth.route.js
+
+```js
+import express from 'express';
+import { google, signin, signup } from '../controllers/auth.controller.js';
+
+const authRouter = express.Router();
+
+authRouter.post('/signup',signup);
+authRouter.post('/signin',signin);
+authRouter.post('/google',google);
+authRouter.get('/signout',signOut);
+
+export default authRouter;
+```
+
+- create the functionality signOut at auth.controller.js  and complete it's logic
+
+```js
+import bcryptsjs from "bcryptjs";
+import { errorHandler } from "../utils/error.js";
+import jwt from "jsonwebtoken";
+import userModel from "../models/user.model.js";
+
+export const signup = async (req, res) => {
+  const { username, email, password } = req.body;
+  const hashedPassword = bcryptsjs.hashSync(password, 10);
+  const newUser = new userModel({ username, email, password: hashedPassword });
+
+  try {
+    await newUser.save();
+    res
+      .status(201)
+      .json({ success: true, message: "User created successfully!" });
+  } catch (error) {
+    // next(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+export const signin = async (req, res /* , next */) => {
+  const { email, password } = req.body;
+  try {
+    const vaildUser = await userModel.findOne({ email });
+    if (!vaildUser)
+      return /* next(errorHandler(404, "User not found!")); */ res.json({
+        success: false,
+        message: "User not found!",
+      });
+    const vaildPassword = bcryptsjs.compareSync(password, vaildUser.password);
+    if (!vaildPassword)
+      return /* next(errorHandler(401, "Wrong credential!")); */ res.json({
+        success: false,
+        message: "Wrong credential!",
+      });
+    const token = jwt.sign({ id: vaildUser._id }, process.env.JWT_SECRET);
+    //seprate the password for safety
+    const { password: pass, ...rest } = vaildUser._doc;
+    //save this token as browser cookie
+    res
+      .cookie("access_token", token, { httpOnly: true })
+      .status(200)
+      .json(rest);
+  } catch (error) {
+    // next(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+export const google = async (req, res) => {
+  const { name, email, photo } = req.body;
+
+  try {
+    const user = await userModel.findOne({ email });
+
+    if (user) {
+      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+      const { password: pass, ...rest } = user._doc;
+      res
+        .cookie("access_token", token, { httpOnly: true })
+        .status(200)
+        .json(rest);
+    } else {
+      const generatedPassword =
+        Math.random().toString(36).slice(-8) +
+        Math.random().toString(36).slice(-8);
+      const hashedPassword = bcryptsjs.hashSync(generatedPassword, 10);
+      const username =
+        name.split(" ").join("").toLowerCase() +
+        Math.random().toString(36).slice(-4);
+      const newUser = new userModel({
+        username,
+        email,
+        password: hashedPassword,
+        avatar: photo,
+      });
+      await newUser.save();
+      const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET);
+      const { password: pass, ...rest } = newUser._doc;
+      res
+        .cookie("access_token", token, { httpOnly: true })
+        .status(200)
+        .json(rest);
+    }
+  } catch (error) {
+    res.status(401).json({ success: false, message: error });
+  }
+};
+
+export const signOut = async (req, res, next) => {
+  try {
+    res.clearCookie('access_token');
+    res.status(200).json({success:true,message:"User has been logged out!"});
+  } catch (error) {
+    next(error);
+  }
+};
+```
+
+- add backend signOut functionality at fronted page profile.jsx
+- before that we create dispatch in userSlice to handle signout success or failure
+
+```js
+import { createSlice } from "@reduxjs/toolkit";
+
+const initialState = {
+  currentUser: null,
+  error: null,
+  loading: false,
+};
+
+const userSlice = createSlice({
+  name: "user",
+  initialState,
+  reducers: {
+    signInStar: (state) => {
+      state.loading = true;
+    },
+    signInSuccess: (state, action) => {
+      state.currentUser = action.payload;
+      state.loading = false;
+      state.error = null;
+    },
+    signFailure: (state, action) => {
+      state.err = action.payload;
+      state.loading = false;
+    },
+    updateUserStart: (state) => {
+      state.loading = true;
+    },
+    updateUserSuccess: (state,action) => {
+      state.currentUser = action.payload;
+      state.loading = false;
+      state.error = null;
+    },
+    updateUserFailure: (state,action) => {
+      state.error = action.payload;
+      state.loading = false;
+    },
+    deleteUserStart:(state) => {
+      state.loading = true;
+    },
+    deleteUserSuccess:(state,action) => {
+      state.currentUser = null;
+      state.loading = false;
+      state.error = null;
+    },
+    deleteUserFailure:(state,action) => {
+      state.error = action.payload;
+      state.loading = false;
+    },
+    signOutUserStart:(state) => {
+      state.loading = true;
+    },
+    signOutUserSuccess: (state,action) => {
+      state.error = null;
+      state.loading = false;
+      state.currentUser = null;
+    },
+    signOutUserFailure:(state,action) => {
+      state.error = action.payload;
+      state.loading = false;
+    }
+  },
+});
+
+export const {
+  signInStar,
+  signInSuccess,
+  signFailure,
+  updateUserStart,
+  updateUserSuccess,
+  updateUserFailure,
+  deleteUserStart,
+  deleteUserSuccess,
+  deleteUserFailure,
+  signOutUserStart,
+  signOutUserSuccess,
+  signOutUserFailure
+} = userSlice.actions;
+export default userSlice.reducer;
+```
+
+
+
+-  frontend logic add at handleSignOut functionality 
+
+```jsx
+import { React, useRef, useState, useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { getDownloadURL, getStorage, ref, uploadBytesResumable } from 'firebase/storage'
+import { app } from '../firebase'
+import axios from 'axios'
+import {
+  updateUserStart, updateUserSuccess, updateUserFailure,
+  deleteUserStart, deleteUserSuccess, deleteUserFailure,
+  signOutUserStart,signOutUserSuccess,signOutUserFailure
+} from '../redux/user/userSlice'
+import { toast } from 'react-toastify'
+
+const Profile = () => {
+
+  const { currentUser, loading, error } = useSelector((state) => state.user)
+  const fileRef = useRef(null);
+  const [file, setFile] = useState(undefined);
+  const [filePerc, setFilePerc] = useState(0);
+  const [fileUploadError, setFileUploadError] = useState(false);
+  const [formData, setFormData] = useState({});
+  const dispatch = useDispatch();
+
+  //filebase storage
+  /* 
+    allow read;
+    allow write : if
+    request.resource.size < 2 * 1024 * 1024 &&
+    request.resource.contentType.matches('image/.*')
+  */
+
+  useEffect(() => {
+    if (file) {
+      handleFileUpload(file);
+    }
+  }, [file])
+
+  const handleFileUpload = (file) => {
+    const storage = getStorage(app);
+    const fileName = new Date().getTime() + file.name;
+    const storageRef = ref(storage, fileName);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on('state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred /
+          snapshot.totalBytes) * 100;
+        setFilePerc(Math.round(progress));
+      },
+      (error) => {
+        setFileUploadError(true);
+      },
+      () => {
+        getDownloadURL(uploadTask.snapshot.ref).then
+          ((downloadURL) => {
+            setFormData({ ...formData, avatar: downloadURL });
+          })
+      }
+    )
+  }
+
+  const handleChange = (event) => {
+    setFormData({ ...formData, [event.target.id]: event.target.value });
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    try {
+      dispatch(updateUserStart());
+      const res = await axios.post(`/api/user/update/${currentUser._id}`, formData);
+
+      if (res.data.success == false) {
+        dispatch(updateUserFailure(res.data.message));
+        return;
+      }
+      toast.success(res.data.message);
+      dispatch(updateUserSuccess(res.data));
+    } catch (error) {
+      toast.error(error.response.data.message);
+      dispatch(updateUserFailure(error.response.data.message));
+    }
+
+  }
+
+  const handleDeleteUser = async () => {
+    try {
+      dispatch(deleteUserStart());
+      const res = await axios.delete(`/api/user/delete/${currentUser._id}`);
+      if(res.data.success == false){
+        dispatch(deleteUserFailure(res.data.message));
+        toast.error(res.data.message);
+        return;
+      }
+
+      dispatch(deleteUserSuccess(res.data));
+      toast.success(res.data.message);
+    } catch (error) {
+      toast.error(error.message);
+      dispatch(deleteUserFailure(error.message));
+    }
+  }
+
+  const handleSignOut = async() => {
+    try {
+      dispatch(signOutUserStart());
+      const res =  await axios.get('/api/auth/signout');
+      if(res.success == false){
+        dispatch(signOutUserFailure(res.data.message));
+        return;
+      }
+      dispatch(signOutUserSuccess(res.data));
+      toast.success(res.data.message);
+    } catch (error) {
+      dispatch(signOutUserFailure(error.message));
+      toast.error(res.data.message);
+    }
+  }
+
+  return (
+    <div className='p-3 max-w-lg mx-auto'>
+      <h1 className='text-3xl text-center font-semibold my-7'>Profile</h1>
+      <form onSubmit={handleSubmit} className='flex flex-col gap-4'>
+        <input
+          onChange={(e) => setFile(e.target.files[0])}
+          type="file"
+          hidden
+          ref={fileRef}
+          accept='image/*'
+        />
+        {/* click this img just click fileRef input */}
+        <img onClick={() => fileRef.current.click()} className='rounded-full h-24 w-24 object-cover cursor-pointer self-center' src={formData.avatar || currentUser.avatar} alt="profile" />
+        <p className='text-sm self-center'>
+          {fileUploadError ? (
+            <span className='text-red-700'>Error Image upload(image must less than 2 mb)</span>
+          ) : filePerc > 0 && filePerc < 100 ? (
+            <span className='text-slate-700'>{`Uploading ${filePerc}%`}</span>
+          ) : filePerc === 100 ? (
+            <span className='text-green-700'>ImageSuccessfully uploaded!</span>
+          ) : (
+            ""
+          )
+          }
+        </p>
+        <input onChange={handleChange} className='border p-3 rounded-lg' type="text" placeholder='username' id='username' defaultValue={currentUser.username} />
+        <input onChange={handleChange} className='border p-3 rounded-lg' type="text" placeholder='email' id='email' defaultValue={currentUser.email} />
+        <input onChange={handleChange} className='border p-3 rounded-lg' type="password" placeholder='password' id='password' />
+        <button disabled={loading} className='bg-slate-700 text-white rounded-lg p-3 uppercase hover:opacity-95 disabled:opacity-80'>
+          {loading ? 'loading' : 'update'}
+        </button>
+      </form>
+      <div className='flex justify-between mt-5'>
+        <span onClick={handleDeleteUser} className='text-red-700 cursor-pointer'>Delete Account</span>
+        <span onClick={handleSignOut} className='text-red-700 cursor-pointer'>Sign Out</span>
+      </div>
+    </div>
+  )
+}
+
+export default Profile
+```
+
+
+
