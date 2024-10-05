@@ -2216,3 +2216,160 @@ export default Profile
 
 
 
+### 24. Add create listing API route 
+
+- create listing Api route at new route `/api/listing` in  index.js
+
+```js
+import express from "express";
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+dotenv.config();
+import userRouter from "./routes/user.route.js"
+import authRouter from "./routes/auth.route.js";
+import cookieParser from "cookie-parser";
+import listingRouter from "./routes/listing.route.js";
+
+mongoose
+  .connect(process.env.MOGO)
+  .then(() => {
+    console.log("Connect to MongoDB!");
+  })
+  .catch((err) => {
+    console.log(err);
+  });
+
+const app = express();
+const port = 8888;
+
+
+app.use(express.json());
+
+app.use(cookieParser());
+
+//middleware
+app.use((err,req,res,next) => {
+  const statusCode = err.statusCode || 500;
+  const message = err.message || 'Internal Server Error!!!';
+
+  return res.status(statusCode).json({
+    success:false,
+    statusCode,
+    message,
+  });
+});
+
+//api endpoints
+app.use('/api/user',userRouter);
+app.use('/api/auth',authRouter);
+app.use('/api/listing',listingRouter);
+
+
+
+app.listen(port, () => {
+  console.log(`Server is runing on port ${port}!`);
+});
+```
+
+- create **listingRouter ** in routes folder
+
+```js
+import express from "express";
+import { createListing } from "../controllers/listing.controller.js";
+import { verifyToken } from "../utils/verifyUser.js";
+
+const listingRouter = express.Router();
+
+listingRouter.post('/create',verifyToken,createListing);
+
+export default listingRouter;
+```
+
+- create **listing.controller** add functionality createListing and write logic for create listing.
+
+```js
+import listingModel from "../models/listing.model.js";
+
+export const createListing = async (req,res,next) => {
+    try {
+        const listing = await listingModel.create(req.body);
+        return res.status(201).json({
+            success:true,
+            listing,
+        })
+    } catch (error) {
+        next(error);
+    }
+}
+```
+
+- create **ListingModel** add the rules for that in our application
+
+```js
+import mongoose from "mongoose";
+
+const listingSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+    },
+    description: {
+      type: String,
+      required: true,
+    },
+    address: {
+      type: String,
+      required: true,
+    },
+    regularPrice: {
+      type: Number,
+      required: true,
+    },
+    discountPrice: {
+      type: Number,
+      required: true,
+    },
+    bathrooms: {
+      type: Number,
+      required: true,
+    },
+    bedrooms: {
+      type: Number,
+      required: true,
+    },
+    furnished: {
+      type: Boolean,
+      required: true,
+    },
+    parking: {
+      type: Boolean,
+      required: true,
+    },
+    type: {
+      type: String,
+      required: true,
+    },
+    offer: {
+      type: Boolean,
+      required: true,
+    },
+    imageUrls: {
+      type: Array,
+      required: true,
+    },
+    userRef: {
+      type: String,
+      required: true,
+    },
+  },
+  { timestamps: true }
+);
+
+const listingModel =
+  mongoose.models.listing || mongoose.model("listing", listingSchema);
+
+export default listingModel;
+```
+
+- listing api route create complete
