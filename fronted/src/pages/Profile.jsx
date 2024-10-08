@@ -6,9 +6,10 @@ import axios from 'axios'
 import {
   updateUserStart, updateUserSuccess, updateUserFailure,
   deleteUserStart, deleteUserSuccess, deleteUserFailure,
-  signOutUserStart,signOutUserSuccess,signOutUserFailure
+  signOutUserStart, signOutUserSuccess, signOutUserFailure
 } from '../redux/user/userSlice'
 import { toast } from 'react-toastify'
+import { Link } from 'react-router-dom'
 
 const Profile = () => {
 
@@ -85,7 +86,7 @@ const Profile = () => {
     try {
       dispatch(deleteUserStart());
       const res = await axios.delete(`/api/user/delete/${currentUser._id}`);
-      if(res.data.success == false){
+      if (res.data.success == false) {
         dispatch(deleteUserFailure(res.data.message));
         toast.error(res.data.message);
         return;
@@ -99,11 +100,11 @@ const Profile = () => {
     }
   }
 
-  const handleSignOut = async() => {
+  const handleSignOut = async () => {
     try {
       dispatch(signOutUserStart());
-      const res =  await axios.get('/api/auth/signout');
-      if(res.success == false){
+      const res = await axios.get('/api/auth/signout');
+      if (res.success == false) {
         dispatch(signOutUserFailure(res.data.message));
         return;
       }
@@ -146,7 +147,11 @@ const Profile = () => {
         <button disabled={loading} className='bg-slate-700 text-white rounded-lg p-3 uppercase hover:opacity-95 disabled:opacity-80'>
           {loading ? 'loading' : 'update'}
         </button>
+        <Link className='bg-green-700 text-white p-3 rounded-lg uppercase text-center hover:opacity-95' to={'/create-listing'}>
+          Create Listing
+        </Link>
       </form>
+
       <div className='flex justify-between mt-5'>
         <span onClick={handleDeleteUser} className='text-red-700 cursor-pointer'>Delete Account</span>
         <span onClick={handleSignOut} className='text-red-700 cursor-pointer'>Sign Out</span>

@@ -2373,3 +2373,301 @@ export default listingModel;
 ```
 
 - listing api route create complete
+
+
+
+###  25. Complete create listing page UI
+
+- add Link button create Listing  and link to 'create-listing' `CreateListing.jsx`  use Private Route
+
+```jsx
+//add Link button create Listing 
+
+import { React, useRef, useState, useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { getDownloadURL, getStorage, ref, uploadBytesResumable } from 'firebase/storage'
+import { app } from '../firebase'
+import axios from 'axios'
+import {
+  updateUserStart, updateUserSuccess, updateUserFailure,
+  deleteUserStart, deleteUserSuccess, deleteUserFailure,
+  signOutUserStart, signOutUserSuccess, signOutUserFailure
+} from '../redux/user/userSlice'
+import { toast } from 'react-toastify'
+import { Link } from 'react-router-dom'
+
+const Profile = () => {
+
+  const { currentUser, loading, error } = useSelector((state) => state.user)
+  const fileRef = useRef(null);
+  const [file, setFile] = useState(undefined);
+  const [filePerc, setFilePerc] = useState(0);
+  const [fileUploadError, setFileUploadError] = useState(false);
+  const [formData, setFormData] = useState({});
+  const dispatch = useDispatch();
+
+  //filebase storage
+  /* 
+    allow read;
+    allow write : if
+    request.resource.size < 2 * 1024 * 1024 &&
+    request.resource.contentType.matches('image/.*')
+  */
+
+  useEffect(() => {
+    if (file) {
+      handleFileUpload(file);
+    }
+  }, [file])
+
+  const handleFileUpload = (file) => {
+    const storage = getStorage(app);
+    const fileName = new Date().getTime() + file.name;
+    const storageRef = ref(storage, fileName);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on('state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred /
+          snapshot.totalBytes) * 100;
+        setFilePerc(Math.round(progress));
+      },
+      (error) => {
+        setFileUploadError(true);
+      },
+      () => {
+        getDownloadURL(uploadTask.snapshot.ref).then
+          ((downloadURL) => {
+            setFormData({ ...formData, avatar: downloadURL });
+          })
+      }
+    )
+  }
+
+  const handleChange = (event) => {
+    setFormData({ ...formData, [event.target.id]: event.target.value });
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    try {
+      dispatch(updateUserStart());
+      const res = await axios.post(`/api/user/update/${currentUser._id}`, formData);
+
+      if (res.data.success == false) {
+        dispatch(updateUserFailure(res.data.message));
+        return;
+      }
+      toast.success(res.data.message);
+      dispatch(updateUserSuccess(res.data));
+    } catch (error) {
+      toast.error(error.response.data.message);
+      dispatch(updateUserFailure(error.response.data.message));
+    }
+
+  }
+
+  const handleDeleteUser = async () => {
+    try {
+      dispatch(deleteUserStart());
+      const res = await axios.delete(`/api/user/delete/${currentUser._id}`);
+      if (res.data.success == false) {
+        dispatch(deleteUserFailure(res.data.message));
+        toast.error(res.data.message);
+        return;
+      }
+
+      dispatch(deleteUserSuccess(res.data));
+      toast.success(res.data.message);
+    } catch (error) {
+      toast.error(error.message);
+      dispatch(deleteUserFailure(error.message));
+    }
+  }
+
+  const handleSignOut = async () => {
+    try {
+      dispatch(signOutUserStart());
+      const res = await axios.get('/api/auth/signout');
+      if (res.success == false) {
+        dispatch(signOutUserFailure(res.data.message));
+        return;
+      }
+      dispatch(signOutUserSuccess(res.data));
+      toast.success(res.data.message);
+    } catch (error) {
+      dispatch(signOutUserFailure(error.message));
+      toast.error(res.data.message);
+    }
+  }
+
+  return (
+    <div className='p-3 max-w-lg mx-auto'>
+      <h1 className='text-3xl text-center font-semibold my-7'>Profile</h1>
+      <form onSubmit={handleSubmit} className='flex flex-col gap-4'>
+        <input
+          onChange={(e) => setFile(e.target.files[0])}
+          type="file"
+          hidden
+          ref={fileRef}
+          accept='image/*'
+        />
+        {/* click this img just click fileRef input */}
+        <img onClick={() => fileRef.current.click()} className='rounded-full h-24 w-24 object-cover cursor-pointer self-center' src={formData.avatar || currentUser.avatar} alt="profile" />
+        <p className='text-sm self-center'>
+          {fileUploadError ? (
+            <span className='text-red-700'>Error Image upload(image must less than 2 mb)</span>
+          ) : filePerc > 0 && filePerc < 100 ? (
+            <span className='text-slate-700'>{`Uploading ${filePerc}%`}</span>
+          ) : filePerc === 100 ? (
+            <span className='text-green-700'>ImageSuccessfully uploaded!</span>
+          ) : (
+            ""
+          )
+          }
+        </p>
+        <input onChange={handleChange} className='border p-3 rounded-lg' type="text" placeholder='username' id='username' defaultValue={currentUser.username} />
+        <input onChange={handleChange} className='border p-3 rounded-lg' type="text" placeholder='email' id='email' defaultValue={currentUser.email} />
+        <input onChange={handleChange} className='border p-3 rounded-lg' type="password" placeholder='password' id='password' />
+        <button disabled={loading} className='bg-slate-700 text-white rounded-lg p-3 uppercase hover:opacity-95 disabled:opacity-80'>
+          {loading ? 'loading' : 'update'}
+        </button>
+        <Link className='bg-green-700 text-white p-3 rounded-lg uppercase text-center hover:opacity-95' to={'/create-listing'}>
+          Create Listing
+        </Link>
+      </form>
+
+      <div className='flex justify-between mt-5'>
+        <span onClick={handleDeleteUser} className='text-red-700 cursor-pointer'>Delete Account</span>
+        <span onClick={handleSignOut} className='text-red-700 cursor-pointer'>Sign Out</span>
+      </div>
+    </div>
+  )
+}
+
+export default Profile
+```
+
+- create Route for CreateListing.jsx in`App.jsx` 
+
+```jsx
+import React from 'react'
+import { Routes, Route } from 'react-router-dom'
+import Home from './pages/Home.jsx'
+import SignIn from './pages/Signin.jsx'
+import SignUp from './pages/SignUp.jsx'
+import About from './pages/About.jsx'
+import Profile from './pages/Profile.jsx'
+import Header from './components/Header.jsx'
+import { ToastContainer, toast } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
+import PrivateRoute from './components/PrivateRoute.jsx'
+import CreateListing from './pages/CreareListing.jsx'
+
+const App = () => {
+  return (
+    <>
+      <ToastContainer />
+      <Header />
+      <Routes>
+        <Route path='/' element={<Home />} />
+        <Route path='/sign-in' element={<SignIn />} />
+        <Route path='/sign-up' element={<SignUp />} />
+        <Route path='/about' element={<About />} />
+        <Route element={<PrivateRoute />}>
+          <Route path='/profile' element={<Profile />} />
+          <Route path = '/create-listing' element={<CreateListing/>}/>
+        </Route>
+      </Routes>
+    </>
+  )
+}
+
+export default App
+```
+
+
+
+- create `CreateListing.jsx` and complete it's UI
+
+```jsx
+import React from 'react'
+
+const CreareListing = () => {
+    return (
+        <main className='p-3 max-w-4xl mx-auto'>
+            <h1 className='text-3xl font-semibold text-center my-7'>Create a Listing</h1>
+            <form className='flex flex-col sm:flex-row gap-4'>
+                <div className='flex flex-col gap-4 flex-1'>
+                    <input type="text" placeholder='Name' className='border p-3 rounded-lg' id='name' maxLength='62' minLength='10' required />
+                    <textarea type="text" placeholder='Description' className='border p-3 rounded-lg' id='description' required />
+                    <input type="text" placeholder='Address' className='border p-3 rounded-lg' id='Address' required />
+                    <div className='flex gap-4 flex-wrap'>
+                        <div className='flex gap-2'>
+                            <input type="checkbox" id='sell' className='w-5' />
+                            <span>Sell</span>
+                        </div>
+                        <div className='flex gap-2'>
+                            <input type="checkbox" id='rent' className='w-5' />
+                            <span>Rent</span>
+                        </div>
+                        <div className='flex gap-2'>
+                            <input type="checkbox" id='parking' className='w-5' />
+                            <span>Parking spot</span>
+                        </div>
+                        <div className='flex gap-2'>
+                            <input type="checkbox" id='furnished' className='w-5' />
+                            <span>Furnished</span>
+                        </div>
+                        <div className='flex gap-2'>
+                            <input type="checkbox" id='offer' className='w-5' />
+                            <span>Offer</span>
+                        </div>
+                    </div>
+                    <div className='flex flex-wrap gap-6'>
+                        <div className='flex items-center gap-2'>
+                            <input type="number" id='bedrooms' min='1' max='10' required
+                                className='p-3 border border-gray-300 rounded-lg' />
+                            <p>Beds</p>
+                        </div>
+                        <div className='flex items-center gap-2'>
+                            <input type="number" id='bathrooms' min='1' max='10' required
+                                className='p-3 border border-gray-300 rounded-lg' />
+                            <p>Baths</p>
+                        </div>
+                        <div className='flex items-center gap-2'>
+                            <input type="number" id='regularPrice' min='1' max='10' required
+                                className='p-3 border border-gray-300 rounded-lg' />
+                            <div className='flex flex-col items-center'>
+                                <p>Regular price</p>
+                                <span className='text-sm'>($/Month)</span>
+                            </div>
+                        </div>
+                        <div className='flex items-center gap-2'>
+                            <input type="number" id='discountedPrice' min='1' max='10' required
+                                className='p-3 border border-gray-300 rounded-lg' />
+                            <div className='flex flex-col items-center'>
+                                <p>Discounted price</p>
+                                <span className='text-sm'>($/Month)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div className='flex flex-col flex-1 gap-4'>
+                    <p className='font-semibold'>Images:
+                        <span className='font-normal text-gray-600 ml-2'>The first image will be the cover (max 6)</span>
+                    </p>
+                    <div className='flex gap-4'>
+                        <input className='p-3 border border-gray-300 rounded w-full' type="file" id="images" accept='image/*' multiple />
+                        <button className='p-3 text-green-700 border border-green-700 rounded uppercase hover:shadow-lg disabled:opacity-80'>Upload</button>
+                    </div>
+                    <button className='p-3 bg-slate-700 text-white rounded-lg uppercase hover:opacity-95 disabled:opacity-95'>Create Listing</button>
+                </div>
+            </form>
+        </main>
+    )
+}
+
+export default CreareListing
+```
+
