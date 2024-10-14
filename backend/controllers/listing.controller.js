@@ -5,6 +5,7 @@ export const createListing = async (req,res,next) => {
         const listing = await listingModel.create(req.body);
         return res.status(201).json({
             success:true,
+            message:'Create listing success',
             listing,
         })
     } catch (error) {
