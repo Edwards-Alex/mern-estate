@@ -1,3 +1,4 @@
+import listingModel from "../models/listing.model.js";
 import userModel from "../models/user.model.js";
 import { errorHandler } from "../utils/error.js";
 import bcryptjs from "bcryptjs";
@@ -33,15 +34,34 @@ export const updateUser = async (req, res, next) => {
 };
 
 export const deleteUser = async (req, res, next) => {
-    console.log(req.params.id)
-    if( req.user.id !== req.params.id){
-        return next(errorHandler(401,'You can only delete your own account!'));
-    }
-    try {
-        await userModel.findByIdAndDelete(req.params.id);
-        res.status(200).json({success:true,message:'User has been deleted'});
+  console.log(req.params.id);
+  if (req.user.id !== req.params.id) {
+    return next(errorHandler(401, "You can only delete your own account!"));
+  }
+  try {
+    await userModel.findByIdAndDelete(req.params.id);
+    res.status(200).json({ success: true, message: "User has been deleted" });
+  } catch (error) {
+    next(error);
+  }
+};
 
-    } catch (error) {
+export const getUserListings = async (req, res, next) => {
+  try {
+    if (req.user.id == req.params.id) {
+      try {
+        const listings = await listingModel.find({ userRef: req.params.id });
+        res.status(200).json({success:true,listings,message:'Search listings success!'});
+      } catch (error) {
         next(error);
+      }
+    } else {
+      return res.json({
+        success: false,
+        message: "You can only view your own listings!",
+      });
     }
+  } catch (error) {
+    next(error);
+  }
 };
