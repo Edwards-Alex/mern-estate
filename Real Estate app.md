@@ -3233,3 +3233,133 @@ export default CreareListing
 ```
 
  
+
+### 27. Create get user listing API route
+
+- create route url at `user.route.js`
+
+- ```js
+  userRouter.get('/listings/:id',verifyToken,getUserListings);
+  ```
+
+- create functionality `getUserListings` at `user.controller.js`
+
+- ```js
+  export const getUserListings = async (req, res, next) => {
+    try {
+      if (req.user.id == req.params.id) {
+        try {
+          const listings = await listingModel.find({ userRef: req.params.id });
+          res.status(200).json({success:true,listings,message:'Search listings success!'});
+        } catch (error) {
+          next(error);
+        }
+      } else {
+        return res.json({
+          success: false,
+          message: "You can only view your own listings!",
+        });
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+  ```
+
+- then user listing api route is complete and test with `Insomnia`
+
+- ![测试结果](https://img.picui.cn/free/2024/10/15/670d90a7a89c0.png)
+
+- api work successfully
+
+
+
+### 28. Complete show user listings functionality
+
+- create page UI `show listing` button  and  listings contents UI
+
+- ```jsx
+  <button onClick={handleShowListings} className='text-green-700 text-sm w-full'>Show listings</button>
+        <p className='text-red-700 mt-5'>{showListingError ? 'Error Showing listings' : ''}</p>
+  
+  ```
+
+- ```jsx
+   {userListings && userListings.length > 0 &&
+          <div className='flex flex-col gap-4'>
+            <h1 className='text-center mt-7 text-3xl font-semibold'>Your Listing</h1>
+            {userListings.map((listing) => (
+              <div key={listing._id}
+                className='border rounded-lg p-3 flex justify-between items-center gap-4'>
+                <Link to={`/listing/${listing._id}`}>
+                  <img className='h-16 w-16 object-contain'
+                    src={listing.imageUrls[0]}
+                    alt="listing cover" />
+                </Link>
+                <Link className='text-slate-700 flex-1 font-semibold hover:underline truncate' to={`/listing/${listing._id}`}>
+                  <p >{listing.name}</p>
+                </Link>
+                <div className='flex flex-col items-center'>
+                  <button className='text-red-700 uppercase'>Delete</button>
+                  <button className='text-green-700 uppercase'>Edit</button>
+                </div>
+              </div>
+            ))}
+  ```
+
+- create `handleShowListings` functionality
+
+- ```jsx
+  const handleShowListings = async () => {
+      try {
+        setShowListingError(false);
+        const res = await axios.get(`/api/user/listings/${currentUser._id}`);
+        if (res.data.success === false) {
+          setShowListingError(true);
+          return;
+        }
+        toast.success(res.data.message);
+        setUserListings(res.data.listings);
+      } catch (error) {
+        setShowListingError(true);
+      }
+    }
+  ```
+
+
+
+### 29. Complete delete user listing functionality
+
+- create api roure for delete listing at `listing.route.js`
+
+- ```js
+  listingRouter.delete('/delete/:id',verifyToken,deleteListing);
+  ```
+
+- create function `deleteListing` at ``listing.contriler.js
+
+- ```js
+  export const deleteListing = async (req, res, next) => {
+    const listing = await listingModel.findById(req.params.id);
+    if (!listing) {
+      return next(errorHandler(404, "Listing not found!"));
+    }
+    if (req.user.id !== listing.userRef) {
+      return next(errorHandler(401, "You can only delete your own listings!"));
+    }
+    try {
+      await listingModel.findByIdAndDelete(req.params.id);
+      res
+        .status(200)
+        .json({ success: true, message: "Delete listing successfully" });
+    } catch (error) {
+      next(error);
+    }
+  };
+  ```
+
+- test with `insomnia`
+
+![delete listing](https://www.helloimg.com/i/2024/10/15/670e1827afbd4.png)
+
+- delete listing test successfully
