@@ -3363,3 +3363,27 @@ export default CreareListing
 ![delete listing](https://www.helloimg.com/i/2024/10/15/670e1827afbd4.png)
 
 - delete listing test successfully
+
+- create delete function  at fronted page `profile.jsx`
+
+- ```jsx
+  const handleListingDelete = async (listingId) => {
+      try {
+        const res = await axios.delete(`/api/listing/delete/${listingId}`);
+        if (res.data.success == false) {
+          toast.error(res);
+          return
+        }
+  
+        setUserListings((prev) => prev.filter((listing) => listing.id !== listingId));
+        handleShowListings();
+        toast.success(res.data.message);
+      } catch (error) {
+        toast.error(error.message);
+      }
+    }
+  
+  <button onClick={()=>handleListingDelete(listing._id)} className='text-red-700 uppercase'>Delete</button>
+  ```
+
+  

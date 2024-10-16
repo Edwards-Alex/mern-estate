@@ -26,7 +26,7 @@ export const deleteListing = async (req, res, next) => {
     await listingModel.findByIdAndDelete(req.params.id);
     res
       .status(200)
-      .json({ success: true, message: "Delete listing successfully" });
+      .json({ success: true, message: "Listing has been deleted!" });
   } catch (error) {
     next(error);
   }
