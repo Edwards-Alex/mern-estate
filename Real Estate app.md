@@ -3386,4 +3386,44 @@ export default CreareListing
   <button onClick={()=>handleListingDelete(listing._id)} className='text-red-700 uppercase'>Delete</button>
   ```
 
+
+
+### 30. Complete update listing API route
+
+- create API route for update listing
+
+- ```js
+  listingRouter.post('/update/:id',verifyToken,updateListing);
+  ```
+
+- create function `updateListing` at `listing.controller.js`
+
+- ```js
+  export const updateListing = async (req, res, next) => {
+    const listing = await listingModel.findById(req.params.id);
+    if (!listing) {
+      return next(errorHandler(404, "Listing not found!"));
+    }
+    if (req.user.id !== listing.userRef) {
+      return next(errorHandler(401, "You can only update your own listing!"));
+    }
   
+    try {
+      const updatedListing = await listingModel.findByIdAndUpdate(
+        req.params.id,
+        req.body,
+        //{new : true} : get new listing not pre listing in the return
+        { new: true }
+      );
+      res.status(200).json({success:true,updatedListing});
+    } catch (error) {
+      next(error);
+    }
+  };
+  ```
+
+- then test this API with `insomnia`
+
+![update listing](https://img.picui.cn/free/2024/10/16/670f0bdc60ab8.png)
+
+- update listing successfully
