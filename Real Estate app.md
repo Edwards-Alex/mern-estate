@@ -3427,3 +3427,83 @@ export default CreareListing
 ![update listing](https://img.picui.cn/free/2024/10/16/670f0bdc60ab8.png)
 
 - update listing successfully
+
+
+
+### 31. Complete update listing functionality
+
+- create Route path for `UpdateListing.jsx`in `App.jsx`
+
+- ```jsx
+  import UpdateListing from './pages/UpdateListing.jsx'
+  
+      <Route element={<PrivateRoute />}>
+            <Route path='/profile' element={<Profile />} />
+            <Route path='/create-listing' element={<CreateListing />} />
+            <Route path='update-listing/:listingId' element={<UpdateListing />} />
+          </Route>
+  ```
+
+- get the `listingId` in `updateListing.jsx `and fetch listing by listingId
+
+- ```jsx
+  import { useNavigate, useParams } from 'react-router-dom'
+  
+  const params = useParams();
+  
+  useEffect(() => {
+          const fetchListing = async () => {
+              const listingId = params.listingId;
+              console.log(listingId);
+              
+          }
+  
+          fetchListing();
+      }, [])
+  ```
+
+- create api route for fetch listing by listingId in `listing.route.js`
+
+- ```js
+  listingRouter.get('/get/:id',getListing);
+  ```
+
+- create function `getListing` in `listing.controller.js`
+
+- ```js
+  export const getListing = async (req, res, next) => {
+    try {
+      const listing = await listingModel.findById(req.params.id);
+      if (!listing) {
+        return next(errorHandler(404, "Listing not found!"));
+      }
+      res.status(200).json({ success: true, listing });
+    } catch (error) {
+      next(error);
+    }
+  };
+  ```
+
+- test `getListing` API with insomnia
+
+![get listing by Id](https://img.picui.cn/free/2024/10/17/670ff9e0bc967.png)
+
+- set useEffect `fetchListing()`function in `updateListing.jsx`
+
+- ```
+   useEffect(() => {
+          const fetchListing = async () => {
+              const listingId = params.listingId;
+              const res = await axios.get(`/api/listing/get/${listingId}`);
+              if(res.data.success !== true){
+                  console.log(data.message);
+                  return;
+              }
+              setFormData(res.data.listing);
+          }
+  
+          fetchListing();
+      }, [])
+  ```
+
+- 

@@ -48,7 +48,19 @@ export const updateListing = async (req, res, next) => {
       //{new : true} : get new listing not pre listing in the return
       { new: true }
     );
-    res.status(200).json({success:true,updatedListing});
+    res.status(200).json({ success: true, updatedListing });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getListing = async (req, res, next) => {
+  try {
+    const listing = await listingModel.findById(req.params.id);
+    if (!listing) {
+      return next(errorHandler(404, "Listing not found!"));
+    }
+    res.status(200).json({ success: true, listing });
   } catch (error) {
     next(error);
   }
