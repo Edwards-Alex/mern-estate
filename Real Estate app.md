@@ -3490,8 +3490,59 @@ export default CreareListing
 
 - set useEffect `fetchListing()`function in `updateListing.jsx`
 
-- ```
+- ```jsx
    useEffect(() => {
+          const fetchListing = async () => {
+              const listingId = params.listingId;
+              const res = await axios.get(`/api/listing/get/${listingId}`);
+              if(res.data.success !== true){
+                  console.log(data.message);
+                  return;
+              }
+              setFormData(res.data.listing);
+          }
+    
+          fetchListing();
+      }, [])
+  ```
+
+- the total code for `updateListing.jsx`
+
+- ```jsx
+  import React, { useEffect } from 'react'
+  import { useState } from 'react'
+  import { getDownloadURL, getStorage, ref, uploadBytesResumable } from 'firebase/storage';
+  import { app } from '../firebase';
+  import { toast } from 'react-toastify'
+  import axios from 'axios';
+  import { useSelector } from 'react-redux';
+  import { useNavigate, useParams } from 'react-router-dom'
+  
+  const UpdateListing = () => {
+      const { currentUser } = useSelector(state => state.user);
+      const navigate = useNavigate();
+      const params = useParams();
+      const [files, setFiles] = useState([]);
+      const [formData, setFormData] = useState({
+          imageUrls: [],
+          name: '',
+          description: '',
+          address: '',
+          type: 'rent',
+          bedrooms: 1,
+          bathrooms: 1,
+          regularPrice: 50,
+          discountPrice: 0,
+          offer: false,
+          parking: false,
+          furnished: false
+      })
+      const [imageUploadError, setImageUploadError] = useState(false);
+      const [uploading, setUploading] = useState(false);
+      const [error, setError] = useState(false);
+      const [loading, setLoading] = useState(false);
+  
+      useEffect(() => {
           const fetchListing = async () => {
               const listingId = params.listingId;
               const res = await axios.get(`/api/listing/get/${listingId}`);
@@ -3504,6 +3555,468 @@ export default CreareListing
   
           fetchListing();
       }, [])
+  
+      const handleChange = (e) => {
+          if (e.target.id === 'sell' || e.target.id === 'rent') {
+              setFormData({
+                  ...formData,
+                  type: e.target.id
+              })
+          } else if (e.target.id === 'parking' || e.target.id === 'furnished' || e.target.id === 'offer') {
+              setFormData({
+                  ...formData,
+                  [e.target.id]: e.target.checked
+              })
+          } else {
+              setFormData({
+                  ...formData,
+                  [e.target.id]: e.target.value
+              })
+          }
+      }
+  
+      const handleImageSubmit = (e) => {
+          e.preventDefault();
+          setUploading(true);
+          setImageUploadError(false);
+          if (files.length > 0 && files.length + formData.imageUrls.length < 7) {
+              const promises = [];
+  
+              for (let i = 0; i < files.length; i++) {
+                  promises.push(storeImage(files[i]));
+              }
+              Promise.all(promises).then((urls) => {
+                  setFormData({ ...formData, imageUrls: formData.imageUrls.concat(urls) });
+                  setImageUploadError(false);
+              }).catch((error) => {
+                  setUploading(false);
+                  toast.error('Image upload failed(2mb max per image)')
+                  setImageUploadError('Image upload failed(2mb max per image)');
+              });
+              setUploading(false);
+          } else {
+              setUploading(false);
+              toast.error('You can only upload 6 images per listing');
+              setImageUploadError('You can only upload 6 images per listing');
+          }
+      }
+  
+      const storeImage = async (file) => {
+          return new Promise((resolve, reject) => {
+              const storage = getStorage(app);
+              const fileName = new Date().getTime() + file.name;
+              const storageRef = ref(storage, fileName);
+              const uploadTask = uploadBytesResumable(storageRef, file);
+              uploadTask.on(
+                  "state_changed",
+                  (snapshot) => {
+                      const progress =
+                          (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                      console.log(`Upload is ${progress}% done`);
+                  },
+                  (error) => {
+                      reject(error);
+                  },
+                  () => {
+                      getDownloadURL(uploadTask.snapshot.ref).then((downloadUrl) => {
+                          resolve(downloadUrl);
+                      });
+                  }
+              )
+          })
+      }
+  
+      const handleRemoveImage = (index) => {
+          setFormData(
+              {
+                  ...formData,
+                  imageUrls: formData.imageUrls.filter((_, i) => i != index),
+              }
+          )
+      }
+  
+      const handleSumbit = async (e) => {
+          e.preventDefault();
+          try {
+              if (formData.imageUrls.length < 1) {
+                  setError('You must upload at least one image');
+                  toast.error('You must upload at least one image');
+                  return
+              }
+  
+              if (+formData.regularPrice < +formData.discountPrice) {
+                  setError('Discount price must be lower than regular price');
+                  toast.error('Discount price must be lower than regular price');
+                  return
+              }
+              setLoading(true);
+              setError(false);
+  
+              const res = await axios.post(`/api/listing/update/${params.listingId}`, { ...formData, 'userRef': currentUser._id });
+              setLoading(false);
+              if (res.data.success === false) {
+                  setError(res.data.message);
+                  toast.error(res.data.message);
+              }
+  
+              if (res.data.success === true) {
+                  setError(false);
+                  setLoading(false);
+                  toast.success(res.data.message);
+                  navigate(`/listing/${res.data.updatedListing._id}`);
+              }
+          } catch (error) {
+              setError(error.message);
+              toast.error(error.message);
+              setLoading(false);
+          }
+      }
+      return (
+          <main className='p-3 max-w-4xl mx-auto'>
+              <h1 className='text-3xl font-semibold text-center my-7'>Update a Listing</h1>
+              <form onSubmit={handleSumbit} className='flex flex-col sm:flex-row gap-4'>
+                  <div className='flex flex-col gap-4 flex-1'>
+                      <input type="text" placeholder='Name' className='border p-3 rounded-lg' id='name' maxLength='62' minLength='10' required onChange={handleChange} value={formData.name} />
+                      <textarea type="text" placeholder='Description' className='border p-3 rounded-lg' id='description' onChange={handleChange} value={formData.description} required />
+                      <input type="text" placeholder='Address' className='border p-3 rounded-lg' id='address' onChange={handleChange} value={formData.address} required />
+                      <div className='flex gap-4 flex-wrap'>
+                          <div className='flex gap-2'>
+                              <input type="checkbox" id='sell' className='w-5' onChange={handleChange} checked={formData.type === 'sell'} />
+                              <span>Sell</span>
+                          </div>
+                          <div className='flex gap-2'>
+                              <input type="checkbox" id='rent' className='w-5' onChange={handleChange} checked={formData.type === 'rent'} />
+                              <span>Rent</span>
+                          </div>
+                          <div className='flex gap-2'>
+                              <input type="checkbox" id='parking' className='w-5' onChange={handleChange} checked={formData.parking === true} />
+                              <span>Parking spot</span>
+                          </div>
+                          <div className='flex gap-2'>
+                              <input type="checkbox" id='furnished' className='w-5' onChange={handleChange} checked={formData.furnished === true} />
+                              <span>Furnished</span>
+                          </div>
+                          <div className='flex gap-2'>
+                              <input type="checkbox" id='offer' className='w-5' onChange={handleChange} checked={formData.offer === true} />
+                              <span>Offer</span>
+                          </div>
+                      </div>
+                      <div className='flex flex-wrap gap-6'>
+                          <div className='flex items-center gap-2'>
+                              <input type="number" id='bedrooms' min='1' max='10' required
+                                  onChange={handleChange} value={formData.bedrooms}
+                                  className='p-3 border border-gray-300 rounded-lg' />
+                              <p>Beds</p>
+                          </div>
+                          <div className='flex items-center gap-2'>
+                              <input type="number" id='bathrooms' min='1' max='10' required
+                                  onChange={handleChange} value={formData.bathrooms}
+                                  className='p-3 border border-gray-300 rounded-lg' />
+                              <p>Baths</p>
+                          </div>
+                          <div className='flex items-center gap-2'>
+                              <input type="number" id='regularPrice' min='50' max='500000' required
+                                  onChange={handleChange} value={formData.regularPrice}
+                                  className='p-3 border border-gray-300 rounded-lg' />
+                              <div className='flex flex-col items-center'>
+                                  <p>Regular price</p>
+                                  <span className='text-sm'>($/Month)</span>
+                              </div>
+                          </div>
+                          {formData.offer && (
+                              <div className='flex items-center gap-2'>
+                                  <input type="number" id='discountPrice' min='0' max='500000' required
+                                      onChange={handleChange} value={formData.discountPrice}
+                                      className='p-3 border border-gray-300 rounded-lg' />
+                                  <div className='flex flex-col items-center'>
+                                      <p>Discounted price</p>
+                                      <span className='text-sm'>($/Month)</span>
+                                  </div>
+                              </div>
+                          )}
+                      </div>
+                  </div>
+                  <div className='flex flex-col flex-1 gap-4'>
+                      <p className='font-semibold'>Images:
+                          <span className='font-normal text-gray-600 ml-2'>The first image will be the cover (max 6)</span>
+                      </p>
+                      <div className='flex gap-4'>
+                          <input onChange={(e) => setFiles(e.target.files)} className='p-3 border border-gray-300 rounded w-full' type="file" id="images" accept='image/*' multiple />
+                          <button disabled={uploading} onClick={handleImageSubmit} className='p-3 text-green-700 border border-green-700 rounded uppercase hover:shadow-lg disabled:opacity-80'>{uploading ? "Uploading" : "Upload"}</button>
+                      </div>
+                      <p className='text-sm text-red-700 my-4'>{imageUploadError && imageUploadError}</p>
+                      {
+  
+                          formData.imageUrls.length > 0 ? formData.imageUrls.map((url, index) => {
+                              return (
+                                  <div key={url} className='flex justify-between p-3 border items-center'>
+                                      <img src={url} alt='listing images' className='w-40 h-40 object-cover rounded-lg' />
+                                      <button type='button' onClick={() => handleRemoveImage(index)} className='text-red-700 p-3 rounded-lg uppercase hover:opacity-75'>Delete</button>
+                                  </div>
+                              )
+                          }) : null
+                      }
+                      <button disabled={loading || uploading} className='p-3 bg-slate-700 text-white rounded-lg uppercase hover:opacity-95 disabled:opacity-95'>{loading ? 'updating...' : 'update Listing'}</button>
+                      {error ? <p className='text-red-700 text-sm'>{error}</p> : null}
+                  </div>
+              </form>
+          </main>
+      )
+  }
+  
+  export default UpdateListing
   ```
 
-- 
+  
+
+### 32. Add image slider to the list page 
+
+- create page `Listing.jsx` to show listing information.
+
+- add page route for `Listing.jsx` in `App.jsx`.
+
+- ```jsx
+  <Route path='/listing/:listingId' element={<Listing/>}/>
+  ```
+
+- create get listing information route in `listing.route.js`
+
+- not use verify user token，because every one can search this information.
+
+- ```js
+  listingRouter.get('/get/:id',getListing);
+  ```
+
+- create function `getListing()`in `listing.controller.js`
+
+- ```js
+  export const getListing = async (req, res, next) => {
+    try {
+      const listing = await listingModel.findById(req.params.id);
+      if (!listing) {
+        return next(errorHandler(404, "Listing not found!"));
+      }
+      res.status(200).json({ success: true, listing });
+    } catch (error) {
+      next(error);
+    }
+  };
+  ```
+
+- get information for `listing.jsx`
+
+- ```jsx
+   useEffect(() => {
+      const fetchListing = async () => {
+        try {
+          setLoading(true);
+          setError(false);
+          //in App.js Route path='update-listing/:listingId' so use listingId
+          const res = await axios.get(`/api/listing/get/${params.listingId}`)
+          if (res.data.success == false) {
+            setError(true);
+            setLoading(false);
+            return;
+          }
+          setListing(res.data.listing);
+          setLoading(false);
+          setError(false);
+        }
+        catch (error) {
+          setError(true);
+          setLoading(false);
+        }
+      }
+    
+      fetchListing();
+    },[params.listingId])
+  ```
+
+- show image with swiper so install it first in frontend
+
+- ```
+  npm i swiper
+  ```
+
+- import swiper and use it show image slide
+
+- ```jsx
+  import axios from 'axios'
+  import React, { useEffect, useState } from 'react'
+  import { useParams } from 'react-router-dom'
+  import { Swiper, SwiperSlide } from 'swiper/react'
+  import SwiperCore from 'swiper'
+  import { Navigation } from 'swiper/modules'
+  import 'swiper/css/bundle'
+  
+  const Listing = () => {
+  
+    SwiperCore.use([Navigation]);
+  
+    const [listing, setListing] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(false);
+    const params = useParams();
+  
+    useEffect(() => {
+      const fetchListing = async () => {
+        try {
+          setLoading(true);
+          setError(false);
+          //in App.js Route path='update-listing/:listingId' so use listingId
+          const res = await axios.get(`/api/listing/get/${params.listingId}`)
+          if (res.data.success == false) {
+            setError(true);
+            setLoading(false);
+            return;
+          }
+          setListing(res.data.listing);
+          setLoading(false);
+          setError(false);
+        }
+        catch (error) {
+          setError(true);
+          setLoading(false);
+        }
+      }
+  
+      fetchListing();
+    }, [params.listingId])
+  
+    return (
+      <main>
+        {loading && <p className='text-center my-7 text-2xl'>Loading...</p>}
+        {error && <p className='text-center my-7 text-2xl'>Something went wrong!</p>}
+        {listing && !loading && !error &&
+          (
+            <div>
+              <Swiper navigation>
+                {
+                  listing.imageUrls.map((url) => (
+                    <SwiperSlide key={url}>
+                      <div
+                        className='h-[550px]'
+                        style={{ background: `url(${url}) center no-repeat`, backgroundSize: 'cover' }}
+                      ></div>
+                    </SwiperSlide>
+                  ))
+                }
+              </Swiper>
+            </div>
+          )
+        }
+      </main>
+    )
+  }
+  
+  export default Listing
+  ```
+
+  
+
+### 33. Complete listing page
+
+- create image slide. `npm install swiper ` import packages 
+
+- ```jsx
+  import { Swiper, SwiperSlide } from 'swiper/react'
+  import SwiperCore from 'swiper'
+  import { Navigation } from 'swiper/modules'
+  import 'swiper/css/bundle'
+  
+  const Listing = () => {
+  
+    SwiperCore.use([Navigation]);
+      
+      <main>
+        {loading && <p className='text-center my-7 text-2xl'>Loading...</p>}
+        {error && <p className='text-center my-7 text-2xl'>Something went wrong!</p>}
+        {listing && !loading && !error &&
+          (
+            <div>
+              <Swiper navigation>
+                {
+                  listing.imageUrls.map((url) => (
+                    <SwiperSlide key={url}>
+                      <div
+                        className='h-[550px]'
+                        style={{ background: `url(${url}) center no-repeat`, backgroundSize: 'cover' }}
+                      ></div>
+                    </SwiperSlide>
+                  ))
+                }
+              </Swiper>
+              </div>
+        </main>
+  }
+  
+  ```
+
+- than set share icon , and add click function for it 
+
+- ```jsx
+  <div className='fixed top-[13%] right-[3%] z-10 border rounded-full w-12 h-12 flex justify-center items-center bg-slate-100 cursor-pointer'>
+                <FaShare className='text-slate-500' onClick={() => {
+                  console.log('enter onclick function')
+                  navigator.clipboard.writeText(window.location.href);
+                  toast.success('Link copied!');
+                }
+                } />
+              </div>
+  ```
+
+- create title , description and show beds,baths,parking,furnished numbers or status
+
+- ```jsx
+   <div className='flex flex-col max-w-4xl mx-auto p-3 my-7 gap-4'>
+                <p className='text-2xl font-semibold'>
+                  {listing.name} - ${' '}
+                  {listing.offer
+                    ? listing.discountPrice.toLocaleString('en-US')
+                    : listing.regularPrice.toLocaleString('en-US')
+                  }
+                  {listing.type === 'rent' && '/month'}
+                </p>
+                <p className='flex items-center  mt-6 gap-2 text-slate-600  text-sm'>
+                  <FaMapMarkerAlt className='text-green-700' />
+                  {listing.address}
+                </p>
+                <div className='flex gap-4'>
+                  <p className='bg-red-900 w-full max-w-[200px] text-white text-center p-1 rounded-md'>
+                    {listing.type === 'rent' ? 'For Rent' : 'For Sale'}
+                  </p>
+                  {
+                    listing.offer && (
+                      <p className='bg-green-900 w-full max-w-[200px] text-white text-center p-1 rounded-md'>${+listing.regularPrice - +listing.discountPrice}</p>
+                    )
+                  }
+                </div>
+                <p className='text-salte-800'>
+                  <span className='font-semibold text-black'>
+                    Description - {' '}
+                  </span>
+                  {listing.description}
+                </p>
+                <ul className=' flex items-center flex-wrap gap-4 sm:gap-6  text-green-900 font-semibold whitespace-nowrap text-sm'>
+                  <li className='flex items-center gap-1 '>
+                    <FaBed className='text-lg'/>
+                    {listing.bedrooms > 1 ? `${listing.bedrooms} beds`: `${listing.bedrooms} bed`}
+                  </li>
+                  <li className='flex items-center gap-1 '>
+                    <FaBath className='text-lg'/>
+                    {listing.bathrooms > 1 ? `${listing.bathrooms} baths`: `${listing.bathrooms} bath`}
+                  </li>
+                  <li className='flex items-center gap-1 '>
+                    <FaParking className='text-lg'/>
+                    {listing.parking  ? 'Parking spot': 'No Parking'}
+                  </li>
+                  <li className='flex items-center gap-1 '>
+                    <FaChair className='text-lg'/>
+                    {listing.furnished ? 'Furnished': 'No Furnished'}
+                  </li>
+                </ul>
+              </div>
+            </div>
+  ```
+
+- `Listing.jsx` base page is completed.
