@@ -7,6 +7,8 @@ import { Navigation } from 'swiper/modules'
 import 'swiper/css/bundle'
 import { FaBath, FaBed, FaChair, FaMapMarkerAlt, FaParking, FaShare } from 'react-icons/fa'
 import { toast } from 'react-toastify'
+import { useSelector } from 'react-redux'
+import Contact from '../components/Contact'
 
 const Listing = () => {
 
@@ -16,7 +18,9 @@ const Listing = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const params = useParams();
-
+  const { currentUser } = useSelector((state) => state.user);
+  const [contact, setContact] = useState(false);
+ 
   useEffect(() => {
     const fetchListing = async () => {
       try {
@@ -100,22 +104,31 @@ const Listing = () => {
               </p>
               <ul className=' flex items-center flex-wrap gap-4 sm:gap-6  text-green-900 font-semibold whitespace-nowrap text-sm'>
                 <li className='flex items-center gap-1 '>
-                  <FaBed className='text-lg'/>
-                  {listing.bedrooms > 1 ? `${listing.bedrooms} beds`: `${listing.bedrooms} bed`}
+                  <FaBed className='text-lg' />
+                  {listing.bedrooms > 1 ? `${listing.bedrooms} beds` : `${listing.bedrooms} bed`}
                 </li>
                 <li className='flex items-center gap-1 '>
-                  <FaBath className='text-lg'/>
-                  {listing.bathrooms > 1 ? `${listing.bathrooms} baths`: `${listing.bathrooms} bath`}
+                  <FaBath className='text-lg' />
+                  {listing.bathrooms > 1 ? `${listing.bathrooms} baths` : `${listing.bathrooms} bath`}
                 </li>
                 <li className='flex items-center gap-1 '>
-                  <FaParking className='text-lg'/>
-                  {listing.parking  ? 'Parking spot': 'No Parking'}
+                  <FaParking className='text-lg' />
+                  {listing.parking ? 'Parking spot' : 'No Parking'}
                 </li>
                 <li className='flex items-center gap-1 '>
-                  <FaChair className='text-lg'/>
-                  {listing.furnished ? 'Furnished': 'No Furnished'}
+                  <FaChair className='text-lg' />
+                  {listing.furnished ? 'Furnished' : 'No Furnished'}
                 </li>
               </ul>
+
+              {currentUser && listing.userRef !== currentUser._id && !contact && (
+                <button onClick={() => setContact(true)} className='bg-slate-700 text-white rounded-lg uppercase p-3 hover:opacity-95'>
+                  Contact landlord
+                </button>
+              )}
+
+
+              {contact && <Contact listing={listing} />}
             </div>
           </div>
         )

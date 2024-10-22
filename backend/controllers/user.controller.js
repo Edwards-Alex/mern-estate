@@ -51,7 +51,9 @@ export const getUserListings = async (req, res, next) => {
     if (req.user.id == req.params.id) {
       try {
         const listings = await listingModel.find({ userRef: req.params.id });
-        res.status(200).json({success:true,listings,message:'Show listings success!'});
+        res
+          .status(200)
+          .json({ success: true, listings, message: "Show listings success!" });
       } catch (error) {
         next(error);
       }
@@ -61,6 +63,23 @@ export const getUserListings = async (req, res, next) => {
         message: "You can only view your own listings!",
       });
     }
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUser = async (req, res, next) => {
+  try {
+    const user = await userModel.findById(req.params.id);
+
+    if (!user) {
+      next(errorHandler(404, "User not found!"));
+      return;
+    }
+
+    const { password: pass, ...rest } = user._doc;
+
+    res.status(200).json({ success: true, rest });
   } catch (error) {
     next(error);
   }
