@@ -71,8 +71,8 @@ export const getListings = async (req, res, next) => {
     // limit show numbers of result.
     const limit = parseInt(req.query.limit) || 9;
     const startIndex = parseInt(req.query.startIndex) || 0;
+    
     let offer = req.query.offer;
-
     if (offer === undefined || offer === "false") {
       offer = { $in: [false, true] };
     }
@@ -84,13 +84,11 @@ export const getListings = async (req, res, next) => {
     }
 
     let parking = req.query.parking;
-
     if (parking === undefined || parking === "false") {
       parking = { $in: [false, true] };
     }
 
     let type = req.query.type;
-
     if (type === undefined || type === "all") {
       type = { $in: ["rent", "sale"] };
     }
@@ -102,8 +100,9 @@ export const getListings = async (req, res, next) => {
     const order = req.query.order || 'desc';
 
     const listings = await listingModel.find({
-      //$options:'1': searh all either lowercase or uppercase.
-      name: { $regex: searchTerm, $options: '1' },
+      //$options:'i': searh all either lowercase or uppercase.
+      // $regex:searchTerm：allow to search for listings that contain searchTerm.
+      name: { $regex: searchTerm, $options: 'i' },
       offer,
       furnished,
       parking,
