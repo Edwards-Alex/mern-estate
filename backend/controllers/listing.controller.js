@@ -90,7 +90,7 @@ export const getListings = async (req, res, next) => {
 
     let type = req.query.type;
     if (type === undefined || type === "all") {
-      type = { $in: ["rent", "sale"] };
+      type = { $in: ["rent", "sell"] };
     }
 
     const searchTerm = req.query.searchTerm || "";
@@ -99,15 +99,24 @@ export const getListings = async (req, res, next) => {
 
     const order = req.query.order || 'desc';
 
-    const listings = await listingModel.find({
-      //$options:'i': searh all either lowercase or uppercase.
-      // $regex:searchTerm：allow to search for listings that contain searchTerm.
-      name: { $regex: searchTerm, $options: 'i' },
+    //build the query object 
+    const query = {
       offer,
       furnished,
       parking,
-      type,
-    }).sort(
+      type
+    }
+
+    //add name filter only if searchTerm is not empty
+    if(searchTerm.trim() !== ""){
+      //$options:'i': searh all either lowercase or uppercase.
+      // $regex:searchTerm：allow to search for listings that contain searchTerm.
+      query.name = {$regex: searchTerm, $options: 'i' }
+    }
+
+    const listings = await listingModel.find(
+        query
+    ).sort(
       {[sort]: order}
     ).limit(limit).skip(startIndex);
 

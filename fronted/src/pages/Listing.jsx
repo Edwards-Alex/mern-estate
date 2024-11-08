@@ -67,7 +67,6 @@ const Listing = () => {
             </Swiper>
             <div className='fixed top-[13%] right-[3%] z-10 border rounded-full w-12 h-12 flex justify-center items-center bg-slate-100 cursor-pointer'>
               <FaShare className='text-slate-500' onClick={() => {
-                console.log('enter onclick function')
                 navigator.clipboard.writeText(window.location.href);
                 toast.success('Link copied!');
               }
@@ -92,7 +91,7 @@ const Listing = () => {
                 </p>
                 {
                   listing.offer && (
-                    <p className='bg-green-900 w-full max-w-[200px] text-white text-center p-1 rounded-md'>${+listing.regularPrice - +listing.discountPrice}</p>
+                    <p className='bg-green-900 w-full max-w-[200px] text-white text-center p-1 rounded-md'>${+listing.regularPrice - +listing.discountPrice} OFF</p>
                   )
                 }
               </div>

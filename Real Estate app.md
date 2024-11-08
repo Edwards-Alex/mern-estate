@@ -4507,3 +4507,11 @@ useEffect(() => {
     }, [location.search]);
 ```
 
+
+
+
+
+###  39.  Create the listing item component and show listings
+
+- 
+
