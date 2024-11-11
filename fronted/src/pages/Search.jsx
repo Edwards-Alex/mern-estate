@@ -16,8 +16,7 @@ const Search = () => {
     });
     const [loading, setLoading] = useState(false);
     const [listings, setListings] = useState([]);
-    
-    console.log(listings);
+    const [showMore, setShowMore] = useState(false);    
 
     useEffect(() => {
         const urlParams = new URLSearchParams(location.search);
@@ -51,8 +50,14 @@ const Search = () => {
 
         const fetchListings = async () => {
             setLoading(true);
+            setShowMore(false);
             const searchQuery = urlParams.toString();
             const res = await axios.get(`/api/listing/get?${searchQuery}`);
+            if(res.data.listings.length > 8){
+                setShowMore(true);
+            }else{
+                setShowMore(false);
+            }
             setListings(res.data.listings);
             setLoading(false);
         };
@@ -62,7 +67,7 @@ const Search = () => {
 
     const handleChange = (e) => {
 
-        if (e.target.id === 'all' || e.target.id === 'rent' || e.target.id === 'sale') {
+        if (e.target.id === 'all' || e.target.id === 'rent' || e.target.id === 'sell') {
             setSidebardata({ ...sidebardata, type: e.target.id });
         }
 
@@ -101,6 +106,18 @@ const Search = () => {
         navigate(`/search?${searchQuery}`);
     }
 
+    const onShowMoreClick  = async() => {
+        const numberOfListings = listings.length;
+        const startIndex = numberOfListings;
+        const urlParams = new URLSearchParams(location.search);
+        urlParams.set('startIndex',startIndex);
+        const searchQuery = urlParams.toString();
+        const res = await axios.get(`/api/listing/get?${searchQuery}`);
+        if(res.data.listings.length < 9){
+            setShowMore(false);
+        }
+        setListings([...listings,...res.data.listings]);
+    }
 
 
     return (
@@ -139,10 +156,10 @@ const Search = () => {
                         </div>
                         <div className='flex gap-2'>
                             <input type="checkbox"
-                                id='sale'
+                                id='sell'
                                 className='w-5'
                                 onChange={(e) => handleChange(e)}
-                                checked={sidebardata.type === 'sale'}
+                                checked={sidebardata.type === 'sell'}
                             />
                             <span>Sale</span>
                         </div>
@@ -227,6 +244,14 @@ const Search = () => {
                     {
                         !loading && listings && listings.map((listing)=> <ListingItem key={listing._id} listing={listing}/>)
                     }
+
+                    {showMore && (
+                        <button className='text-green-700 hover:underline p-7 text-center w-full' onClick={() => {
+                            onShowMoreClick();
+                        }}>
+                            Show more
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
