@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "server": "nodemon backend/index.js",
-    "start": "node backend/index.js"
+    "start": "node backend/index.js",
+    "build": "npm install && npm install --prefix fromted && npm run build --prefix fronted"
   },
   "keywords": [],
   "author": "",

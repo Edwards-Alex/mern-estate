@@ -6,6 +6,7 @@ import userRouter from "./routes/user.route.js"
 import authRouter from "./routes/auth.route.js";
 import cookieParser from "cookie-parser";
 import listingRouter from "./routes/listing.route.js";
+import path from 'path';
 
 mongoose
   .connect(process.env.MOGO)
@@ -16,6 +17,7 @@ mongoose
     console.log(err);
   });
 
+const  _dirname = path.resolve();
 const app = express();
 const port = 8888;
 
@@ -38,6 +40,10 @@ app.use('/api/user',userRouter);
 app.use('/api/auth',authRouter);
 app.use('/api/listing',listingRouter);
 
+app.use(express.static(path.join(_dirname , '/fronted/dist')));
+app.get('*',(res,req)=>{
+  res.sendFile(path.join(_dirname,'fronted','dist','index.html'));
+});
 
 
 app.listen(port, () => {
